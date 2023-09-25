@@ -243,7 +243,6 @@ if __name__ == '__main__':
     if make_new_env:
         env = Environment(args.disp, hz=args.hz)
 
-    breakpoint()
     # For some tasks, call reset() again with a new seed if init state is 'done'.
     while dataset.num_episodes < max_demos:
         seed = dataset.num_episodes + seed_to_add

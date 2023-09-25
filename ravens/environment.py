@@ -159,7 +159,7 @@ class Environment():
             p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)
         else:
             p.resetSimulation()
-        p.setGravity(0, 0, -9.8)
+        p.setGravity(0, 0, -9.8)  # 手动修改重力
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -205,7 +205,6 @@ class Environment():
         # since for bag-items we may assign to True!
         task.exit_gracefully = False
 
-        breakpoint()
         # Reset task.
         if last_info is not None:
             task.reset(self, last_info)
