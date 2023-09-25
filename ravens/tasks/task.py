@@ -641,6 +641,7 @@ class Task():
                     pick_pixel, heightmap, self.bounds, self.pixel_size)
                 pick_rotation = p.getQuaternionFromEuler((0, 0, 0))
                 pick_pose = (pick_position, pick_rotation)
+                print("Pick pose:", pick_pose)
 
                 # Get candidate target placing poses.
                 targets = next_step[object_id][1]
@@ -663,6 +664,7 @@ class Task():
                     place_pose = (place_pose[0], (0, 0, 0, 1))
 
                 params = {'pose0': pick_pose, 'pose1': place_pose}
+                print("params:", params)
                 act['params'] = params
 
             elif isinstance(self, tasks.names['sweeping']):
@@ -1264,7 +1266,7 @@ class Task():
         mask = cv2.erode(mask, np.ones((erode_size, erode_size), np.uint8))
         if np.sum(mask) == 0:
             print('Warning! Sum of mask is zero in random_pose().')
-            return
+            return (0.5, 0.0, 0.0), (0,0,0,1)
         pixel = utils.sample_distribution(np.float32(mask))
         position = utils.pixel_to_position(
             pixel, heightmap, self.bounds, self.pixel_size)
