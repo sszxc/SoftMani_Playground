@@ -17,7 +17,7 @@ from ravens import tasks, utils
 
 class Environment():
 
-    def __init__(self, disp=False, hz=240):
+    def __init__(self, disp=True, hz=240):
         """Creates OpenAI gym-style env with support for PyBullet threading.
 
         Args:
@@ -159,7 +159,7 @@ class Environment():
             p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)
         else:
             p.resetSimulation()
-        p.setGravity(0, 0, -9.8)
+        p.setGravity(0, 0, -1)
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -609,6 +609,7 @@ class Environment():
                 time.sleep(pause_place) # extra rest for bags
             elif isinstance(self.task, tasks.names['cable']):
                 preplace_pose[2] = 0.03
+                preplace_pose[2] = 0.2
                 success &= self.movep(preplace_pose, speed=0.001)
             else:
                 success &= self.movep(preplace_pose)

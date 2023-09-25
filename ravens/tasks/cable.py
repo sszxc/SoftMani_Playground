@@ -15,7 +15,7 @@ import os
 import time
 import numpy as np
 import pybullet as p
-
+import math
 from ravens.tasks import Task
 from ravens import utils
 
@@ -34,7 +34,7 @@ class Cable(Task):
         self.goal = {'places': {}, 'steps': [{}]}
 
         # Hyperparameters for the cable and its `num_parts` beads.
-        num_parts = 20
+        num_parts = 25
         radius = 0.005
         length = 2 * radius * num_parts * np.sqrt(2)
 
@@ -44,6 +44,7 @@ class Cable(Task):
         # dimension and lengths with desired values in a new .urdf.
         square_size = (length, length, 0)
         square_pose = self.random_pose(env, square_size)
+        print(square_pose)
         square_template = 'assets/square/square-template.urdf'
         replace = {'DIM': (length,), 'HALF': (length / 2 - 0.005,)}
         urdf = self.fill_template(square_template, replace)
@@ -72,19 +73,18 @@ class Cable(Task):
 
         # Add beaded cable.
         distance = length / num_parts
+        distance = 0.011
         position, _ = self.random_pose(env, zone_range)
         position = np.float32(position)
-        part_shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=[radius] * 3)
-        part_visual = p.createVisualShape(p.GEOM_SPHERE, radius=radius * 1.5)
-        # part_visual = p.createVisualShape(p.GEOM_BOX, halfExtents=[radius] * 3)
-
-        # Iterate and add to object_points, but interestingly, downstream code
-        # only uses it for rewards, not for actions.
+        part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.01)
+        part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.01)
+        
+        orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
         self.object_points = {}
         for i in range(num_parts):
-            position[2] += distance
+            position[0] += distance
             part_id = p.createMultiBody(
-                0.1, part_shape, part_visual, basePosition=position)
+                0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
             if len(env.objects) > 0:
                 constraint_id = p.createConstraint(
                     parentBodyUniqueId=env.objects[-1],
@@ -112,7 +112,6 @@ class Cable(Task):
             self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
             symmetry = 0  # zone-evaluation: symmetry does not matter
             self.goal['steps'][0][part_id] = (symmetry, [part_id])
-
         # Wait for beaded cable to settle.
         env.start()
         time.sleep(1)
