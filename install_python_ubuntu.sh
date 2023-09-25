@@ -12,7 +12,8 @@ set -uexo pipefail
 
 echo "Installing Python libraries..."
 conda install ipython
-conda install tensorflow-gpu==2.4.1
+# conda install tensorflow-gpu==2.4.1
+conda install tensorflow==2.3.0
 
 pip install pybullet==3.0.4
 pip install packaging==19.2
