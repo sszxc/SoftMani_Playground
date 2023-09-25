@@ -74,7 +74,7 @@ class Environment():
 
         # Control PyBullet simulation steps.
         self.step_thread = threading.Thread(target=self.step_simulation)
-        self.step_thread.daemon = True
+        self.step_thread.daemon = True  # 跟随主线程一起结束
         self.step_thread.start()
 
     def step_simulation(self):
@@ -159,7 +159,10 @@ class Environment():
             p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)
         else:
             p.resetSimulation()
-        p.setGravity(0, 0, -1)
+
+        p.setGravity(0, 0, -1)  # 手动修改重力
+
+
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -674,7 +677,7 @@ class Environment():
         else:
             push_direction = (p1 - p0) / np.linalg.norm((p1 - p0))
         p1 = p0 + push_direction * 0.01
-        success &= self.movep(np.hstack((p0, self.home_pose[3:])))
+        success &= self.movep(np.hstack((p0, self.home_pose[3:])))  # 高速到起点 低速推
         success &= self.movep(np.hstack((p1, self.home_pose[3:])), speed=0.003)
         return success
 

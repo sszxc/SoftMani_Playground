@@ -47,7 +47,7 @@ class CableEnv(Task):
         # Cable-related parameters, can override in subclass.
         self.num_parts = 20
         self.radius = 0.005
-        self.length = 2 * self.radius * self.num_parts * np.sqrt(2)
+        self.length = 2 * self.radius * self.num_parts * np.sqrt(2)  # cable 的总长度
         self.colors = [U.COLORS['blue']]
 
         # Put cable bead IDs here, so we don't count non cable IDs for targets.
@@ -116,17 +116,19 @@ class CableEnv(Task):
         num_parts = self.num_parts
         radius = self.radius
         length = self.length
-        color = self.colors[cable_idx] + [1]
-        color_end = U.COLORS['yellow'] + [1]
+        # color = self.colors[cable_idx] + [1]
+        # color_end = U.COLORS['yellow'] + [1]
+        color = U.COLORS['red'] + [1]
+        color_end = U.COLORS['red'] + [1]
 
-        # Add beaded cable.
+        # Add beaded cable.  添加串珠形状的cable, 注意[碰撞体形状]和[可视化形状]
         distance = length / num_parts
         position, _ = self.random_pose(env, size_range)
         position = np.float32(position)
         part_shape = p.createCollisionShape(p.GEOM_BOX, halfExtents=[radius]*3)
         part_visual = p.createVisualShape(p.GEOM_SPHERE, radius=radius*1.5)
 
-        # Iterate through parts and create constraints as needed.
+        # Iterate through parts and create constraints as needed. 逐个添加球体
         for i in range(num_parts):
             if direction == 'x':
                 position[0] += distance
@@ -163,6 +165,7 @@ class CableEnv(Task):
             env.objects.append(part_id)
             self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
 
+            # 根据球的数量和任务目标, 计算每个球的目标位置
             # Get target placing positions for each cable bead, if applicable.
             if self._name == 'cable-shape' or self._name == 'cable-shape-notarget' or \
                     self._name == 'cable-line-notarget':
@@ -460,8 +463,8 @@ class CableShape(CableEnv):
         self.target_debug_markers = False
 
         # Cable parameters. For this I think we want more than 20.
-        self.num_parts = 24
-        self.radius = 0.005
+        self.num_parts = 32  # 24
+        self.radius = 0.004  # 0.005
         self.length = 2 * self.radius * self.num_parts * np.sqrt(2)
         self.num_sides_low = 2
         self.num_sides_high = 4
@@ -491,8 +494,9 @@ class CableShape(CableEnv):
         self.goal = {'places': {}, 'steps': [{}]}
 
         # Sample the 'square pose' which is the center of a rectangle.
-        square_size = (self.length, self.length, 0)
-        square_pose = self.random_pose(env, square_size)
+        # square_size = (self.length, self.length, 0)
+        square_size = (0.1, 0.1, 0)  # 手动设定采样区域
+        square_pose = self.random_pose(env, square_size)  # 返回场景中间的随机 [位置, 四元数] (应该是用于目标框架的 TODO)
         #square_pose = (square_pose[0], (0,0,0,1)) # debugging only
         assert square_pose is not None, f'Cannot sample a pose.'
 
@@ -536,7 +540,7 @@ class CableShape(CableEnv):
         HALF = (DIM[1] / 2, DIM[0] / 2)
         if self.target_zone_visible:
             replace = {'DIM': DIM, 'HALF': HALF}
-            urdf = self.fill_template(template, replace)
+            urdf = self.fill_template(template, replace)  # 替换模板 URDF 文件
             env.add_object(urdf, square_pose, fixed=True)
             os.remove(urdf)
 

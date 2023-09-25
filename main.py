@@ -209,7 +209,7 @@ if __name__ == '__main__':
     parser.add_argument('--crop_bef_q',     default=0, type=int, help='CoRL paper used 1')
     parser.add_argument('--save_zero',      action='store_true', help='Save snapshot at 0 iterations')
     args = parser.parse_args()
-
+    
     # Configure which GPU to use.
     cfg = tf.config.experimental
     gpus = cfg.list_physical_devices('GPU')
