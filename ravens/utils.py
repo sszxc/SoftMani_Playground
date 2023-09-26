@@ -660,3 +660,10 @@ def fit_circle(points_l, scale, debug=False):
         print(f'(hyperfit) rad {r_1:0.4f}, center ({xc_1:0.4f},{yc_1:0.4f})')
         print(f'(least-sq) rad {r_2:0.4f}, center ({xc_2:0.4f},{yc_2:0.4f})')
     return circle_2
+
+def cprint(str, color):
+    '''construnct a string with color print, by Xuechao
+    color: 'black', 'red', 'green', 'yellow', 'blue', 'purple', 'cyan', 'white'
+    '''
+    color_dict = {'black':30, 'red':31, 'green':32, 'yellow':33, 'blue':34, 'purple':35, 'cyan':36, 'white':37}
+    print(f'\033[1;{color_dict[color]};40m{str}\033[0m')

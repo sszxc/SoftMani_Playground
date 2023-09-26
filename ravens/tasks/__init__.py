@@ -11,6 +11,7 @@ from ravens.tasks.palletizing import Palletizing
 from ravens.tasks.kitting import Kitting
 from ravens.tasks.packing import Packing
 from ravens.tasks.cable import Cable
+from ravens.tasks.vessel import Vessel
 
 # New customized environments. When adding these envs, double check:
 #   Environment._is_new_cable_env()
@@ -52,4 +53,5 @@ names = {'sorting':             Sorting,
          'bag-items-easy':      BagItemsEasy,
          'bag-items-hard':      BagItemsHard,
          'bag-color-goal':      BagColorGoal,
+         'cable-vessel':        Vessel,
 }

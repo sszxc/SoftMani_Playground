@@ -43,6 +43,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from ravens import Dataset, Environment, agents, tasks
+from ravens import utils
 
 # Of critical importance! Do 2 for max of 100 demos, 3 for max of 1000 demos.
 MAX_ORDER = 3
@@ -203,7 +204,7 @@ if __name__ == '__main__':
     parser.add_argument('--agent',          default='transporter')
     parser.add_argument('--num_demos',      default='100')
     parser.add_argument('--num_rots',       default=24, type=int)
-    parser.add_argument('--hz',             default=480, type=float)
+    parser.add_argument('--hz',             default=240.0, type=float)
     parser.add_argument('--gpu_mem_limit',  default=None)
     parser.add_argument('--subsamp_g',      action='store_true')
     parser.add_argument('--crop_bef_q',     default=0, type=int, help='CoRL paper used 1')
@@ -227,7 +228,7 @@ if __name__ == '__main__':
 
     # Initialize task. Later, initialize Environment if necessary.
     task = tasks.names[args.task]()
-    dataset = Dataset(os.path.join('data', args.task))
+    dataset = Dataset(os.path.join('data', args.task))  # 写入数据的目标路径
     if args.subsamp_g:
         dataset.subsample_goals = True
 
@@ -245,6 +246,8 @@ if __name__ == '__main__':
 
     # For some tasks, call reset() again with a new seed if init state is 'done'.
     while dataset.num_episodes < max_demos:
+        utils.cprint('called rollout', 'green')
+        breakpoint()
         seed = dataset.num_episodes + seed_to_add
         print(f'\nNEW DEMO: {dataset.num_episodes+1}/{max_demos}, seed {seed}\n')
         np.random.seed(seed)

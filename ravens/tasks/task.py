@@ -660,7 +660,8 @@ class Task():
                 if (isinstance(self, tasks.names['cable']) or
                     isinstance(self, tasks.names['cable-shape']) or
                     isinstance(self, tasks.names['cable-shape-notarget']) or
-                    isinstance(self, tasks.names['cable-line-notarget'])):
+                    isinstance(self, tasks.names['cable-line-notarget']) or 
+                    isinstance(self, tasks.names['cable-vessel'])):
                     place_pose = (place_pose[0], (0, 0, 0, 1))
 
                 params = {'pose0': pick_pose, 'pose1': place_pose}
@@ -1265,7 +1266,7 @@ class Task():
         mask[0, :], mask[:, 0], mask[-1, :], mask[:, -1] = 0, 0, 0, 0
         mask = cv2.erode(mask, np.ones((erode_size, erode_size), np.uint8))
         if np.sum(mask) == 0:
-            print('Warning! Sum of mask is zero in random_pose().')
+            utils.cprint('Warning! Sum of mask is zero in random_pose().', 'red')
             return (0.5, 0.0, 0.0), (0,0,0,1)
         pixel = utils.sample_distribution(np.float32(mask))
         position = utils.pixel_to_position(

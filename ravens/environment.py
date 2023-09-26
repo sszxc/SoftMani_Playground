@@ -17,7 +17,7 @@ from ravens import tasks, utils
 
 class Environment():
 
-    def __init__(self, disp=True, hz=240):
+    def __init__(self, disp=False, hz=240):
         """Creates OpenAI gym-style env with support for PyBullet threading.
 
         Args:
@@ -161,6 +161,7 @@ class Environment():
             p.resetSimulation()
 
         p.setGravity(0, 0, -1)  # 手动修改重力
+        # p.setGravity(0, 0, -9.8)
 
 
 
@@ -612,7 +613,7 @@ class Environment():
                 time.sleep(pause_place) # extra rest for bags
             elif isinstance(self.task, tasks.names['cable']):
                 preplace_pose[2] = 0.03
-                preplace_pose[2] = 0.2
+                # preplace_pose[2] = 0.2  # extra target height
                 success &= self.movep(preplace_pose, speed=0.001)
             else:
                 success &= self.movep(preplace_pose)
@@ -698,7 +699,8 @@ class Environment():
                 isinstance(self.task, tasks.names['cable-shape-notarget']) or
                 isinstance(self.task, tasks.names['cable-line-notarget']) or
                 isinstance(self.task, tasks.names['cable-ring']) or
-                isinstance(self.task, tasks.names['cable-ring-notarget']))
+                isinstance(self.task, tasks.names['cable-ring-notarget']) or
+                isinstance(self.task, tasks.names['cable-vessel']))
 
     def is_cloth_env(self):
         """Keep this updated when I adjust environment names."""

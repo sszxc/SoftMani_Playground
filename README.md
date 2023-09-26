@@ -4,9 +4,9 @@ Multi-robot arm manipulation and soft body simulation environment based on Pybul
 The code is based heavily on the [Deformable Ravens project, ICRA 2021](https://berkeleyautomation.github.io/bags/).
 
 ## Usage
-
-TBD
-
+```
+python3 vessel_sim.py
+```
 
 
 > The following is the README of the [original repository](https://github.com/DanielTakeshi/deformable-ravens).

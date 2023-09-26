@@ -20,7 +20,7 @@ from ravens.tasks import Task
 from ravens import utils
 
 
-class Cable(Task):
+class Vessel(Task):
 
     def __init__(self):
         super().__init__()
@@ -84,7 +84,7 @@ class Cable(Task):
         # only uses it for rewards, not for actions.
         self.object_points = {}
         for i in range(num_parts):
-            position[2] += distance
+            position[0] += distance
             part_id = p.createMultiBody(
                 0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
             if len(env.objects) > 0:
