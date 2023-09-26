@@ -591,7 +591,8 @@ class Environment():
             prepick_pose[2] = postpick_z
             success &= self.movep(prepick_pose, speed=speed)
             time.sleep(pause_place) # extra rest for bags
-        elif isinstance(self.task, tasks.names['cable']):
+        elif isinstance(self.task, tasks.names['cable']) or \
+            isinstance(self.task, tasks.names['cable-vessel']):
             prepick_pose[2] = 0.03
             success &= self.movep(prepick_pose, speed=0.001)
         else:
@@ -611,7 +612,8 @@ class Environment():
                 preplace_pose[2] = preplace_z
                 success &= self.movep(preplace_pose, speed=speed)
                 time.sleep(pause_place) # extra rest for bags
-            elif isinstance(self.task, tasks.names['cable']):
+            elif isinstance(self.task, tasks.names['cable']) or \
+                isinstance(self.task, tasks.names['cable-vessel']):
                 preplace_pose[2] = 0.03
                 # preplace_pose[2] = 0.2  # extra target height
                 success &= self.movep(preplace_pose, speed=0.001)
@@ -699,8 +701,8 @@ class Environment():
                 isinstance(self.task, tasks.names['cable-shape-notarget']) or
                 isinstance(self.task, tasks.names['cable-line-notarget']) or
                 isinstance(self.task, tasks.names['cable-ring']) or
-                isinstance(self.task, tasks.names['cable-ring-notarget']) or
-                isinstance(self.task, tasks.names['cable-vessel']))
+                isinstance(self.task, tasks.names['cable-ring-notarget']))
+                # isinstance(self.task, tasks.names['cable-vessel']))
 
     def is_cloth_env(self):
         """Keep this updated when I adjust environment names."""

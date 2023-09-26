@@ -667,3 +667,10 @@ def cprint(str, color):
     '''
     color_dict = {'black':30, 'red':31, 'green':32, 'yellow':33, 'blue':34, 'purple':35, 'cyan':36, 'white':37}
     print(f'\033[1;{color_dict[color]};40m{str}\033[0m')
+
+def mask_visualization(mask):
+    '''mask: (h, w) -> img: (h, w, 3)
+    '''
+    img = np.expand_dims(mask, -1).repeat(3, axis=-1)
+    scale = int(255 / np.max(img)) if np.max(img) != 0 else 1
+    return  img * scale

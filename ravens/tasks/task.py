@@ -623,9 +623,13 @@ class Task():
 
                 distances_sort = np.argsort(distances)[::-1]
                 possible_objects = possible_objects[distances_sort]
+                breakpoint()
                 for object_id in possible_objects:
+                    cv2.imwrite('debug/object_mask.jpg', utils.mask_visualization(object_mask))  # for DEBUG
                     pick_mask = np.uint8(object_mask == object_id)
+                    cv2.imwrite('debug/before.jpg', utils.mask_visualization(pick_mask))  # for DEBUG
                     pick_mask = cv2.erode(pick_mask, np.ones((3, 3), np.uint8))
+                    cv2.imwrite('debug/after.jpg', utils.mask_visualization(pick_mask))  # for DEBUG
                     if np.sum(pick_mask) > 0:
                         break
 
@@ -820,7 +824,8 @@ class Task():
                     points[2, :] > -0.01,
                     points[2, :] < self.bounds[2, 1]]).tolist()
                 if hasattr(self, 'goal'):
-                    if not isinstance(self, tasks.names['cable']):
+                    if not (isinstance(self, tasks.names['cable']) or
+                            isinstance(self, tasks.names['cable-vessel'])):
                         if len(self.goal['steps']) and any(valid_points):
                             if object_id == list(self.goal['steps'][0].keys())[0]:
                                 self.goal['steps'].pop(0)

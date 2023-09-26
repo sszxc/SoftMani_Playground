@@ -108,6 +108,8 @@ def rollout(agent, env, tasks, args):
     total_reward = 0
     obs = env.reset(task)
     info = env.info
+    
+    # breakpoint()
     for t in range(start_t, task.max_steps):
         act = agent.act(obs, info)
         if len(obs) > 0 and act['primitive']:
@@ -247,7 +249,6 @@ if __name__ == '__main__':
     # For some tasks, call reset() again with a new seed if init state is 'done'.
     while dataset.num_episodes < max_demos:
         utils.cprint('called rollout', 'green')
-        breakpoint()
         seed = dataset.num_episodes + seed_to_add
         print(f'\nNEW DEMO: {dataset.num_episodes+1}/{max_demos}, seed {seed}\n')
         np.random.seed(seed)

@@ -38,6 +38,11 @@ class Vessel(Task):
         radius = 0.005
         length = 2 * radius * num_parts * np.sqrt(2)
 
+
+        # TODO self.goal 目标 part_id -- 某个空间位置
+        # TODO 两根血管
+
+
         # The square -- really 3 edges of it, since .urdf doesn't include a
         # 4th. The square_pose describes the pose relative to a coordinate
         # frame with (0,0,0) at the base of the UR5 robot. Replace the
@@ -84,7 +89,7 @@ class Vessel(Task):
         # only uses it for rewards, not for actions.
         self.object_points = {}
         for i in range(num_parts):
-            position[0] += distance
+            position[2] += distance  # TODO whats for?
             part_id = p.createMultiBody(
                 0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
             if len(env.objects) > 0:
@@ -109,11 +114,16 @@ class Vessel(Task):
             # ..., (a,0,0)}. Then apply zone_pose to re-assign `true_position`.
             # No need for orientation target values as beads are symmetric.
             self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
-            true_position = (radius + distance * i - length / 2, 0, 0)
-            true_position = self.apply(self.zone_pose, true_position)
-            self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
-            symmetry = 0  # zone-evaluation: symmetry does not matter
-            self.goal['steps'][0][part_id] = (symmetry, [part_id])
+
+            # Only the second-to-last node is operable.
+            if i == num_parts - 2:
+                true_position = (radius + distance * i - length / 2, 0, 0)
+                true_position = self.apply(self.zone_pose, true_position)
+                # true_position = self.apply(self.zone_pose, (0.2, 0.2, 0))
+                self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
+                symmetry = 0  # zone-evaluation: symmetry does not matter
+                self.goal['steps'][0][part_id] = (symmetry, [part_id])
+
         # Wait for beaded cable to settle.
         env.start()
         time.sleep(1)

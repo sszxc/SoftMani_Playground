@@ -32,9 +32,9 @@ if __name__ == '__main__':
     # Start one rollout
     np.random.seed(args.seed)
     obs = env.reset(task)
-    # breakpoint()
 
-    agent = task.oracle(env)
+    # agent = task.oracle(env)
+
 
     info = env.info
     for t in range(task.max_steps):
@@ -45,4 +45,4 @@ if __name__ == '__main__':
         if done:
             break
     utils.cprint(f'Rollout complete after {t+1} steps.', 'green')
-    print(F'Last obs: {last_obs_info[0]}')
+    # print(f'Last obs: {last_obs_info[0]}')
