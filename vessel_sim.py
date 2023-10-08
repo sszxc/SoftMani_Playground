@@ -26,23 +26,29 @@ if __name__ == '__main__':
 
     # Initialize Environment
     task = tasks.names[args.task]()
+    print("task", task)
     env = DualArmEnvironment(disp=True, hz=240.0)
     utils.cprint('Finished env init. Starting rollout...', 'green')
 
     # Start one rollout
     np.random.seed(args.seed)
     obs = env.reset(task)
+    
+    # time.sleep(100)
 
     # agent = task.oracle(env)
 
 
     info = env.info
-    for t in range(task.max_steps):
-        act = agent.act(obs, info)
-        (obs, reward, done, info) = env.step(act)
-        last_obs_info = (obs, info)
-        #print(info['extras'], info['...']) # Use this to debug if needed.
-        if done:
-            break
-    utils.cprint(f'Rollout complete after {t+1} steps.', 'green')
+    agent = task.oracle(env)
+    while True:
+        obs = env.reset(task)
+        for t in range(task.max_steps):
+            act = agent.act(obs, info)
+            (obs, reward, done, info) = env.step(act)
+            last_obs_info = (obs, info)
+            #print(info['extras'], info['...']) # Use this to debug if needed.
+            if done:
+                break
+        utils.cprint(f'Rollout complete after {t+1} steps.', 'green')
     # print(f'Last obs: {last_obs_info[0]}')

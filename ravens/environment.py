@@ -204,6 +204,7 @@ class Environment():
 
         # Reset end effector.
         self.ee.release()
+        self.ur5_list = [self.ur5, self.ee_tip_link, self.joints, self.ee]
 
         # Seems like this should be BEFORE reset()
         # since for bag-items we may assign to True!
@@ -562,7 +563,7 @@ class Environment():
 
         # Used to track deformable IDs, so that we can get the vertices.
         def_IDs = []
-        if hasattr(self.task, 'def_IDs'):
+        if hasattr(self.task, 'def_IDs'): # def_IDs is an empty list here!
             def_IDs = self.task.def_IDs
 
         # Otherwise, proceed as normal.
@@ -584,7 +585,7 @@ class Environment():
             success &= self.movep(target_pose)
 
         # Create constraint (rigid objects) or anchor (deformable).
-        self.ee.activate(self.objects, def_IDs)
+        self.ee.activate(self.objects, def_IDs) #since def_IDs is an empty list, grasp the closest object!
 
         # Increase z slightly (or hard-code it) and check picking success.
         if self.is_softbody_env() or self.is_new_cable_env():

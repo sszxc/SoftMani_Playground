@@ -27,14 +27,14 @@ class Vessel(Task):
         self.ee = 'suction'
         self.max_steps = 20
         self.metric = 'zone'
-        self.primitive = 'pick_place'
+        self.primitive = 'pick_place_vessel'
 
     def reset(self, env):
         self.total_rewards = 0
         self.goal = {'places': {}, 'steps': [{}]}
 
         # Hyperparameters for the cable and its `num_parts` beads.
-        num_parts = 25
+        num_parts = 15
         radius = 0.005
         length = 2 * radius * num_parts * np.sqrt(2)
 
@@ -80,7 +80,7 @@ class Vessel(Task):
         distance = length / num_parts
         distance = 0.011
         position, _ = self.random_pose(env, zone_range)
-        position = np.float32(position)
+        position = np.float32((0.2,0,0))
         part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.01)
         part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.01)
         orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
@@ -89,7 +89,7 @@ class Vessel(Task):
         # only uses it for rewards, not for actions.
         self.object_points = {}
         for i in range(num_parts):
-            position[2] += distance  # TODO whats for?
+            position[0] += distance  # TODO whats for?
             part_id = p.createMultiBody(
                 0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
             if len(env.objects) > 0:
@@ -107,22 +107,48 @@ class Vessel(Task):
                 color = utils.COLORS['red'] + [1]
                 p.changeVisualShape(part_id, -1, rgbaColor=color)
             env.objects.append(part_id)
+            print("part_id:", env.objects)
 
+        position, _ = self.random_pose(env, zone_range)
+        position = np.float32((0.5,0,0))
+        for i in range(num_parts):
+            position[0] += distance  # TODO whats for?
+            part_id = p.createMultiBody(
+                0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
+            if len(env.objects) > 0:
+                if i != 0:
+                    constraint_id = p.createConstraint(
+                        parentBodyUniqueId=env.objects[-1],
+                        parentLinkIndex=-1,
+                        childBodyUniqueId=part_id,
+                        childLinkIndex=-1,
+                        jointType=p.JOINT_POINT2POINT,
+                        jointAxis=(0, 0, 0),
+                        parentFramePosition=(0, 0, distance),
+                        childFramePosition=(0, 0, 0))
+                    p.changeConstraint(constraint_id, maxForce=100)
+            if (i > 0) and (i < num_parts - 1):
+                color = utils.COLORS['red'] + [1]
+                p.changeVisualShape(part_id, -1, rgbaColor=color)
+            env.objects.append(part_id)
+            print("part_id:", env.objects)
+            
+            
             # To get target positions for each cable, we need initial reference
             # position `true_position`. Center at x=0 by subtracting length/2.
             # This produces a sequence of points like: {(-a,0,0), ..., (0,0,0),
             # ..., (a,0,0)}. Then apply zone_pose to re-assign `true_position`.
             # No need for orientation target values as beads are symmetric.
-            self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
+            # self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
 
-            # Only the second-to-last node is operable.
-            if i == num_parts - 2:
-                true_position = (radius + distance * i - length / 2, 0, 0)
-                true_position = self.apply(self.zone_pose, true_position)
-                # true_position = self.apply(self.zone_pose, (0.2, 0.2, 0))
-                self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
-                symmetry = 0  # zone-evaluation: symmetry does not matter
-                self.goal['steps'][0][part_id] = (symmetry, [part_id])
+            # # Only the second-to-last node is operable.
+            # if i == num_parts - 2:
+            #     true_position = (radius + distance * i - length / 2, 0, 0)
+            #     true_position = self.apply(self.zone_pose, true_position)
+            #     # true_position = self.apply(self.zone_pose, (0.2, 0.2, 0))
+            #     self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
+            #     symmetry = 0  # zone-evaluation: symmetry does not matter
+            #     self.goal['steps'][0][part_id] = (symmetry, [part_id])
 
         # Wait for beaded cable to settle.
         env.start()
