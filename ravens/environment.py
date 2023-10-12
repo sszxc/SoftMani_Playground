@@ -120,6 +120,8 @@ class Environment():
         return all(np.array(v) < 1e-2)
 
     def add_object(self, urdf, pose, fixed=False):
+        '''use p.loadURDF, parameter: urdf, pose
+        '''
         fixedBase = 1 if fixed else 0
         object_id = p.loadURDF(urdf, pose[0], pose[1], useFixedBase=fixedBase)
         if fixed:

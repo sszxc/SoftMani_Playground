@@ -15,18 +15,21 @@ from ravens.gripper import Gripper, Suction
 from ravens import tasks, utils
 from ravens import Environment
 
+
 class DualArmEnvironment(Environment):
-    
     def __init__(self, disp=False, hz=240):
-        super().__init__(disp, hz)
-        self.primitives["pick_place_vessel"]=self.pick_place_vessel
-    
+        super().__init__(disp, hz)  # 基础的 bullet 环境
+        self.primitives["pick_place_vessel"] = self.pick_place_vessel
+
     def reset(self, task, last_info=None, disable_render_load=True):
+        '''初始化双机械臂环境
+        '''
+        disable_render_load = False  # 初始化的时候允许渲染（会卡顿）
         self.pause()
         self.task = task
         self.objects = []
         self.fixed_objects = []
-        if self.use_new_deformable:
+        if self.use_new_deformable:  # default True
             p.resetSimulation(p.RESET_USE_DEFORMABLE_WORLD)
         else:
             p.resetSimulation()
@@ -34,7 +37,11 @@ class DualArmEnvironment(Environment):
         p.setGravity(0, 0, -1)  # 手动修改重力
         # p.setGravity(0, 0, -9.8)
 
-
+        p.resetDebugVisualizerCamera(
+            cameraDistance=1.0,
+            cameraYaw=20,
+            cameraPitch=-35,
+            cameraTargetPosition=(0.5, 0, 0),)  # 调整相机位置  TODO 好像不能调整焦距
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -52,7 +59,7 @@ class DualArmEnvironment(Environment):
         # Load UR5 robot arm equipped with task-specific end effector.
         self.ur5 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(0,0,0))
         ori_co = p.getQuaternionFromEuler((0, 0, math.pi))
-        self.ur5_2 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(1,0,0), baseOrientation=ori_co)
+        self.ur5_2 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(1.1,0,0), baseOrientation=ori_co)
         self.ee_tip_link_2 = 12
         self.ee_tip_link = 12
         if self.task.ee == 'suction':
@@ -65,17 +72,19 @@ class DualArmEnvironment(Environment):
             self.ee = Gripper()
 
         # Get revolute joint indices of robot (skip fixed joints).
+        utils.cprint('UR5 Arm1 setup...', 'blue')
         num_joints = p.getNumJoints(self.ur5)
-        print("num_joints:", num_joints)
+        # print("num_joints:", num_joints)
         joints = [p.getJointInfo(self.ur5, i) for i in range(num_joints)]
         self.joints = [j[0] for j in joints if j[2] == p.JOINT_REVOLUTE]
-        print("self.joints", joints)
-        
+        # print('self.joints:\n', '\n'.join([str(j) for j in joints]))
+
+        utils.cprint('UR5 Arm2 setup...', 'blue')
         num_joints_2 = p.getNumJoints(self.ur5_2)
-        print("num_joints2:", num_joints_2)
+        # print("num_joints2:", num_joints_2)
         joints_2 = [p.getJointInfo(self.ur5_2, i) for i in range(num_joints_2)]
         self.joints_2 = [j[0] for j in joints_2 if j[2] == p.JOINT_REVOLUTE]
-        print("self.joints2", joints_2)
+        # print('self.joints2:\n', '\n'.join([str(j) for j in joints_2]))
 
         # Move robot to home joint configuration.
         for i in range(len(self.joints)):
@@ -89,21 +98,18 @@ class DualArmEnvironment(Environment):
         ee_tip_state_2 = p.getLinkState(self.ur5_2, self.ee_tip_link_2)
         self.home_pose_2 = np.array(ee_tip_state_2[0] + ee_tip_state_2[1])
 
-        # # Reset end effector.
+        # Reset end effector.
         self.ee.release()
         self.ur5_list = [self.ur5, self.ee_tip_link, self.joints, self.ee]
-
-        # # Reset end effector.
         self.ee_2.release()
         self.ur5_2_list = [self.ur5_2, self.ee_tip_link_2, self.joints_2, self.ee_2]
-        
         
 
         # Seems like this should be BEFORE reset()
         # since for bag-items we may assign to True!
         task.exit_gracefully = False
 
-        # Reset task.
+        # Reset task. 重置血管
         if last_info is not None:
             task.reset(self, last_info)
         else:
@@ -130,7 +136,7 @@ class DualArmEnvironment(Environment):
         assert id_ws == 1, f'Workspace ID: {id_ws}'
 
         # Daniel: tune gripper for deformables if applicable, and CHECK HZ!!
-        if self.is_softbody_env():
+        if self.is_softbody_env():  # default False
             self.ee.set_def_threshold(threshold=self.task.def_threshold)
             self.ee.set_def_nb_anchors(nb_anchors=self.task.def_nb_anchors)
             assert self.hz >= 480, f'Error, hz={self.hz} is too small!'
@@ -143,7 +149,7 @@ class DualArmEnvironment(Environment):
         return obs
     
     def movep(self, arm1_pose, arm2_pose, speed=0.01):
-        """Move dual UR5 to target end effector pose."""
+        """Move dual UR5s to target end effector pose."""
         # # Keep joint angles between -180/+180
         # targj[5] = ((targj[5] + np.pi) % (2 * np.pi) - np.pi)
         if arm1_pose is None:
@@ -159,6 +165,8 @@ class DualArmEnvironment(Environment):
         return self.movej(arm1_targj, arm2_targj, speed, self.t_lim)
 
     def solve_IK(self, arm, pose):
+        '''add parameter 'arm'
+        '''
         homej_list = np.array(self.homej).tolist()
         joints = p.calculateInverseKinematics(
             bodyUniqueId=arm[0],
@@ -177,7 +185,7 @@ class DualArmEnvironment(Environment):
         return joints
     
     def movej(self, arm1_targj, arm2_targj, speed=0.01, t_lim=20):
-        """Move UR5 to target joint configuration."""
+        """Move dual UR5s to target joint configuration."""
         t0 = time.time()
         flag1 = False
         flag2 = False
@@ -337,8 +345,7 @@ class DualArmEnvironment(Environment):
         # Create constraint (rigid objects) or anchor (deformable).
         self.ee.activate(self.objects, def_IDs)
         self.ee_2.activate(self.objects, def_IDs)
-        
-        
+
 
         # Increase z slightly (or hard-code it) and check picking success.
         arm1_prepick_pose[2] = 0.1
@@ -394,5 +401,3 @@ class DualArmEnvironment(Environment):
         #     prepick_pose[2] = final_z
         #     success &= self.movep(prepick_pose)
         # return success
-        
-        

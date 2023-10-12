@@ -28,21 +28,18 @@ if __name__ == '__main__':
     task = tasks.names[args.task]()
     print("task", task)
     env = DualArmEnvironment(disp=True, hz=240.0)
-    utils.cprint('Finished env init. Starting rollout...', 'green')
+    utils.cprint('Finished Bullet init.', 'yellow')
 
     # Start one rollout
     np.random.seed(args.seed)
-    obs = env.reset(task)
     
     # time.sleep(100)
-
-    # agent = task.oracle(env)
-
 
     info = env.info
     agent = task.oracle(env)
     while True:
         obs = env.reset(task)
+        utils.cprint('Finished env init. Starting rollout...', 'green')
         for t in range(task.max_steps):
             act = agent.act(obs, info)
             (obs, reward, done, info) = env.step(act)

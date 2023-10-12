@@ -671,37 +671,38 @@ class Task():
                 params = {'pose0': pick_pose, 'pose1': place_pose}
                 print("params:", params)
                 act['params'] = params
-                
-            
+
             elif self.primitive == 'pick_place_vessel':
+                # !! policy for vessel_sim !!
                 # Trigger reset if no ground truth steps are available.
-                if len(self.goal['steps']) == 0:
+                if len(self.goal['steps']) == 0:  # default False
                     self.goal['steps'] = []  # trigger done then reset
                     return act
 
                 # Get possible picking locations (prioritize furthest).
-                next_step = self.goal['steps'][0]
-                possible_objects = np.int32(list(next_step.keys())).copy()
-                print("possible_objects", possible_objects)
-                distances = []
-                object_positions = []
-                for object_id in env.objects:
-                    print("object_id", object_id)
-                    position_ = p.getBasePositionAndOrientation(object_id)
-                    print(position_)
-                    object_positions.append(position_)
-                    
-                for object_id in possible_objects:
-                    position = p.getBasePositionAndOrientation(object_id)[0]
-                    targets = next_step[object_id][1]
-                    targets = [t for t in targets if t in self.goal['places']]
-                    places = [self.goal['places'][t][0] for t in targets]
-                    d = np.float32(places) - np.float32(position).reshape(1, 3)
-                    distances.append(np.min(np.linalg.norm(d, axis=1)))
+                # next_step = self.goal['steps'][0]
+                # possible_objects = np.int32(list(next_step.keys())).copy()  # default empty
+                # print("possible_objects", possible_objects)
 
-                distances_sort = np.argsort(distances)[::-1]
-                possible_objects = possible_objects[distances_sort]
-                # breakpoint()
+                object_positions = {}
+                for object_id in env.objects:  # record all objects
+                    # print("object_id", object_id)
+                    position_ = p.getBasePositionAndOrientation(object_id)
+                    # print(position_)
+                    object_positions[object_id] = position_
+                    
+                # distances = []
+                # for object_id in possible_objects:  # default skip
+                #     position = p.getBasePositionAndOrientation(object_id)[0]
+                #     targets = next_step[object_id][1]
+                #     targets = [t for t in targets if t in self.goal['places']]
+                #     places = [self.goal['places'][t][0] for t in targets]
+                #     d = np.float32(places) - np.float32(position).reshape(1, 3)
+                #     distances.append(np.min(np.linalg.norm(d, axis=1)))
+
+                # distances_sort = np.argsort(distances)[::-1]
+                # possible_objects = possible_objects[distances_sort]  # default empty
+
                 # for object_id in possible_objects:
                 #     cv2.imwrite('debug/object_mask.jpg', utils.mask_visualization(object_mask))  # for DEBUG
                 #     pick_mask = np.uint8(object_mask == object_id)
@@ -724,9 +725,12 @@ class Task():
                 pick_rotation = p.getQuaternionFromEuler((0, 0, 0))
                 # pick_pose = (pick_position, pick_rotation)
                 # print("Pick pose:", pick_pose)
-                arm1_pick_pose=(object_positions[9][0], pick_rotation)
-                arm2_pick_pose=(object_positions[20][0], pick_rotation)
+
+                part_id = list(self.goal['places'].keys())
+                arm1_pick_pose=(object_positions[part_id[0]][0], pick_rotation)
+                arm2_pick_pose=(object_positions[part_id[1]][0], pick_rotation)
                 print("Pick pose:", arm1_pick_pose, arm2_pick_pose)
+                # TODO checked until here
 
                 # Get candidate target placing poses.
                 # targets = next_step[object_id][1]
@@ -1272,9 +1276,9 @@ class Task():
             fdata = file.read()
         for field in replace:
             for i in range(len(replace[field])):
-                fdata = fdata.replace(f'{field}{i}', str(replace[field][i]))
-        alphabet = string.ascii_lowercase + string.digits
-        rname = ''.join(random.choices(alphabet, k=16))
+                fdata = fdata.replace(f'{field}{i}', str(replace[field][i]))  # 把（所有的） 参数一 替换到 参数二
+        alphabet = string.ascii_lowercase + string.digits  # a-z, 0-9
+        rname = ''.join(random.choices(alphabet, k=16))  # 竟然没用 uuid
         fname = f'{template}.{rname}'
         with open(fname, 'w') as file:
             file.write(fdata)
@@ -1321,7 +1325,8 @@ class Task():
 
     def random_pose(self, env, object_size, hard_code=False):
         """Get random collision-free pose in workspace bounds for object.
-
+        过滤边缘、腐蚀、然后均匀采样 mask=1 的区域
+        
         For tasks like sweeping to a zone target, generates a target zone at
         random, then later generates items to be swept in it. The second step
         requires free space to avoid being within the zone.
@@ -1347,9 +1352,10 @@ class Task():
                 workstation) and it's a simple uniform sample.
         """
         plane_id = 1
-        max_size = np.sqrt(object_size[0]**2 + object_size[1]**2)
-        erode_size = int(np.round(max_size / self.pixel_size))
+        max_size = np.sqrt(object_size[0]**2 + object_size[1]**2)  # 长宽到斜边长
+        erode_size = int(np.round(max_size / self.pixel_size))  # 转到像素
         colormap, heightmap, object_mask = self.get_object_masks(env)
+        m = utils.mask_visualization(object_mask)
 
         # Sample freespace regions in workspace.
         mask = np.uint8(object_mask == plane_id)
