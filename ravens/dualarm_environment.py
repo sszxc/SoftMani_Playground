@@ -57,7 +57,7 @@ class DualArmEnvironment(Environment):
         id_ws = p.loadURDF('assets/ur5/workspace.urdf', [0.5, 0, 0])
 
         # Load UR5 robot arm equipped with task-specific end effector.
-        self.ur5 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(0,0,0))
+        self.ur5 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(-0.1,0,0))
         ori_co = p.getQuaternionFromEuler((0, 0, math.pi))
         self.ur5_2 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(1.1,0,0), baseOrientation=ori_co)
         self.ee_tip_link_2 = 12

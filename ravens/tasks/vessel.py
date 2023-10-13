@@ -36,7 +36,7 @@ class Vessel(Task):
         self.goal = {'places': {}, 'steps': [{}]}
 
         # Hyperparameters for the cable and its `num_parts` beads.
-        num_parts = 15
+        num_parts = 25
         radius = 0.005
         length = 2 * radius * num_parts * np.sqrt(2)  # 总长？
 
@@ -103,10 +103,23 @@ class Vessel(Task):
                 position += [d * distance for d in direction]  # 每次增加一个珠子的距离
                 part_id = p.createMultiBody(
                     0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
+
+                # 物理约束
                 # if len(env.objects) > 0:
                 if i == 0:  # TODO 让第一个珠子和某个固定悬空物体相连
                     pass
-                if i > 0:
+                if i > 0 and (i < num_parts - 1):
+                    constraint_id = p.createConstraint(
+                        parentBodyUniqueId=env.objects[-1],  # 和前一个珠子相连
+                        parentLinkIndex=-1,
+                        childBodyUniqueId=part_id,
+                        childLinkIndex=-1,
+                        jointType=p.JOINT_POINT2POINT,  # 注意这里是点对点
+                        jointAxis=(0, 0, 0),
+                        parentFramePosition=(0, 0, distance * direction[0]),  # TODO 处理不了x轴之外的方向
+                        childFramePosition=(0, 0, 0))
+                    p.changeConstraint(constraint_id, maxForce=100)
+                elif i == num_parts - 1:  # 单独处理最后一个圆柱的约束
                     constraint_id = p.createConstraint(
                         parentBodyUniqueId=env.objects[-1],  # 和前一个珠子相连
                         parentLinkIndex=-1,
@@ -114,9 +127,11 @@ class Vessel(Task):
                         childLinkIndex=-1,
                         jointType=p.JOINT_POINT2POINT,
                         jointAxis=(0, 0, 0),
-                        parentFramePosition=(0, 0, distance * direction[0]),  # TODO 处理不了x轴之外的方向
-                        childFramePosition=(0, 0, 0))
+                        parentFramePosition=(0, 0, 0),
+                        childFramePosition=(0, 0, distance * direction[0]))  # 坐标系放在圆柱末端
                     p.changeConstraint(constraint_id, maxForce=100)
+
+                # 颜色
                 # if (i > 0) and (i < num_parts - 1):  # 一头一尾不变色 中间红色
                 if i > 0:
                     color = utils.COLORS['red'] + [1]
@@ -126,29 +141,29 @@ class Vessel(Task):
             return part_id
 
         utils.cprint('Adding vessel1...', 'green')
-        last_part_1 = add_vessel(np.float32((0.2, 0, 0)), [1, 0, 0])  # add vessel 1
+        last_part_1 = add_vessel(np.float32((0.1, 0.1, 0)), [1, 0, 0])  # add vessel 1
         utils.cprint('Adding vessel2...', 'green')
-        last_part_2 = add_vessel(np.float32((0.7, 0, 0)), [-1, 0, 0])  # add vessel 2
+        last_part_2 = add_vessel(np.float32((0.9, -0.1, 0)), [-1, 0, 0])  # add vessel 2
 
-        true_position = (0.5, 0, 0)
-        self.goal['places'][last_part_1] = (true_position, (0, 0, 0, 1.))
-        self.goal['places'][last_part_2] = (true_position, (0, 0, 0, 1.))
+        # end-part target positions
+        self.goal['places'][last_part_1] = ((0.45,0,0.2), (0, 0, 0, 1))
+        self.goal['places'][last_part_2] = ((0.55,0,0.2), (0, 0, 0, 1))
 
-            # To get target positions for each cable, we need initial reference
-            # position `true_position`. Center at x=0 by subtracting length/2.
-            # This produces a sequence of points like: {(-a,0,0), ..., (0,0,0),
-            # ..., (a,0,0)}. Then apply zone_pose to re-assign `true_position`.
-            # No need for orientation target values as beads are symmetric.
-            # self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
+        # To get target positions for each cable, we need initial reference
+        # position `true_position`. Center at x=0 by subtracting length/2.
+        # This produces a sequence of points like: {(-a,0,0), ..., (0,0,0),
+        # ..., (a,0,0)}. Then apply zone_pose to re-assign `true_position`.
+        # No need for orientation target values as beads are symmetric.
+        # self.object_points[part_id] = np.float32((0, 0, 0)).reshape(3, 1)
 
-            # # Only the second-to-last node is operable.
-            # if i == num_parts - 2:
-            #     true_position = (radius + distance * i - length / 2, 0, 0)
-            #     true_position = self.apply(self.zone_pose, true_position)
-            #     # true_position = self.apply(self.zone_pose, (0.2, 0.2, 0))
-            #     self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
-            #     symmetry = 0  # zone-evaluation: symmetry does not matter
-            #     self.goal['steps'][0][part_id] = (symmetry, [part_id])
+        # # Only the second-to-last node is operable.
+        # if i == num_parts - 2:
+        #     true_position = (radius + distance * i - length / 2, 0, 0)
+        #     true_position = self.apply(self.zone_pose, true_position)
+        #     # true_position = self.apply(self.zone_pose, (0.2, 0.2, 0))
+        #     self.goal['places'][part_id] = (true_position, (0, 0, 0, 1.))
+        #     symmetry = 0  # zone-evaluation: symmetry does not matter
+        #     self.goal['steps'][0][part_id] = (symmetry, [part_id])
 
         # Wait for beaded cable to settle.
         env.start()

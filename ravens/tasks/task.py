@@ -722,21 +722,37 @@ class Task():
                 # pick_pixel = utils.sample_distribution(pick_prob)
                 # pick_position = utils.pixel_to_position(
                 #     pick_pixel, heightmap, self.bounds, self.pixel_size)
-                pick_rotation = p.getQuaternionFromEuler((0, 0, 0))
+                pick_rotation = p.getQuaternionFromEuler((0, 0, 0))  # 默认方向
                 # pick_pose = (pick_position, pick_rotation)
                 # print("Pick pose:", pick_pose)
 
-                part_id = list(self.goal['places'].keys())
-                arm1_pick_pose=(object_positions[part_id[0]][0], pick_rotation)
-                arm2_pick_pose=(object_positions[part_id[1]][0], pick_rotation)
+                # TODO 从这里继续
+
+                # position_shape = position.shape
+                # position = np.float32(position).reshape(3, -1)
+                # rotation = np.float32(p.getMatrixFromQuaternion(pose[1])).reshape(3, 3)
+                # translation = np.float32(pose[0]).reshape(3, 1)
+                # position = rotation @ position + translation
+
+                targets = list(self.goal['places'].keys())
+                targets_pose = []
+                # for t in targets:
+                #     pos = object_positions[t][0]
+                #     rot = object_positions[t][1]
+                #     apply_rot = p.getQuaternionFromEuler((0, 0, 90))
+                #     rot = p.multiplyTransforms(pos, rot, pos, apply_rot)[1]
+
+                # utils.get_rot_from_pybullet_quaternion
+
+                # arm1_pick_pose=(*object_positions[targets[0]],)
+                # arm2_pick_pose=(*object_positions[targets[1]],)
+                
+                arm1_pick_pose=(object_positions[targets[0]][0], pick_rotation)
+                arm2_pick_pose=(object_positions[targets[1]][0], pick_rotation)
                 print("Pick pose:", arm1_pick_pose, arm2_pick_pose)
-                # TODO checked until here
 
                 # Get candidate target placing poses.
-                # targets = next_step[object_id][1]
-                # targets = [pi for pi in targets if pi in self.goal['places']]
-                # i = np.random.randint(0, len(targets))
-                # true_pose = self.goal['places'][targets[i]]
+                targets_pose = [self.goal['places'][targets[i]] for i in range(2)]
 
                 # # Compute placing pose.
                 # object_pose = p.getBasePositionAndOrientation(object_id)
@@ -745,21 +761,10 @@ class Task():
                 # pick_to_object = self.invert(object_to_pick)
                 # place_pose = self.multiply(true_pose, pick_to_object)
 
-                # For various cable tasks, we don't want to apply rotations.
-                if (isinstance(self, tasks.names['cable']) or
-                    isinstance(self, tasks.names['cable-shape']) or
-                    isinstance(self, tasks.names['cable-shape-notarget']) or
-                    isinstance(self, tasks.names['cable-line-notarget']) or 
-                    isinstance(self, tasks.names['cable-vessel'])):
-                    arm1_place_pose = ((0.35,0,0.1), (0, 0, 0, 1))
-                    arm2_place_pose = ((0.45,0,0.1), (0, 0, 0, 1))
-
-                # params = {'pose0': pick_pose, 'pose1': place_pose}
-                params = {'arm1_pose0': arm1_pick_pose, 'arm1_pose1': arm1_place_pose, 'arm2_pose0': arm2_pick_pose, 'arm2_pose1': arm2_place_pose}
+                params = {'arm1_pose0': arm1_pick_pose, 'arm1_pose1': targets_pose[0],
+                          'arm2_pose0': arm2_pick_pose, 'arm2_pose1': targets_pose[1]}
                 print("params:", params)
                 act['params'] = params
-
-            
 
             elif isinstance(self, tasks.names['sweeping']):
                 p0 = None
