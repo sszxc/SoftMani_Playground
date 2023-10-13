@@ -24,7 +24,7 @@ class DualArmEnvironment(Environment):
     def reset(self, task, last_info=None, disable_render_load=True):
         '''初始化双机械臂环境
         '''
-        disable_render_load = False  # 初始化的时候允许渲染（会卡顿）
+        # disable_render_load = False  # 初始化的时候允许渲染（耗时久）
         self.pause()
         self.task = task
         self.objects = []
@@ -41,7 +41,7 @@ class DualArmEnvironment(Environment):
             cameraDistance=1.0,
             cameraYaw=20,
             cameraPitch=-35,
-            cameraTargetPosition=(0.5, 0, 0),)  # 调整相机位置  TODO 好像不能调整焦距
+            cameraTargetPosition=(0.5, 0, 0.1),)  # 调整相机位置  TODO 好像不能调整焦距
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -231,7 +231,7 @@ class DualArmEnvironment(Environment):
                         flag2 = True
             else:
                 flag2 = True
-            time.sleep(0.005)
+            time.sleep(0.001)
             if flag1 and flag2:
                 return True
         print('Warning: movej exceeded {} sec timeout. Skipping.'.format(t_lim))
@@ -279,7 +279,7 @@ class DualArmEnvironment(Environment):
         print("arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1:", arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1)
         # Defaults used in the standard Ravens environments.
         speed = 0.01
-        delta_z = -0.001
+        delta_z = -0.002
         prepick_z = 0.3
         postpick_z = 0.3
         preplace_z = 0.3
@@ -318,8 +318,8 @@ class DualArmEnvironment(Environment):
         arm1_prepick_pose = np.hstack((arm1_prepick_position, arm1_pick_rotation))
         arm2_prepick_pose = np.hstack((arm2_prepick_position, arm2_pick_rotation))
         
-        
-        success &= self.movep(arm1_prepick_pose, arm2_prepick_position)
+        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose)
+        utils.cprint("Arrive prepick_pose", "yellow")
         
         arm1_target_pose = arm1_prepick_pose.copy()
         arm2_target_pose = arm2_prepick_pose.copy()
@@ -327,17 +327,19 @@ class DualArmEnvironment(Environment):
 
         # Lower gripper until (a) touch object (rigid OR softbody), or (b) hit ground.
         while True:
-            if not self.ee.detect_contact(def_IDs) and arm1_target_pose[2] > 0:
-                arm1_target_pose += delta
-            else:
-                arm1_target_pose = None
-                
-            if not self.ee_2.detect_contact(def_IDs) and arm2_target_pose[2] > 0:
-                arm2_target_pose += delta
-            else:
-                arm2_target_pose = None
-                
-            if arm1_target_pose is None and arm2_target_pose is None:
+            if arm1_target_pose is not None:
+                if not self.ee.detect_contact(def_IDs) and arm1_target_pose[2] > 0:  # what goes wrong here?
+                    arm1_target_pose += delta
+                else:
+                    arm1_target_pose = None
+
+            if arm2_target_pose is not None:
+                if not self.ee_2.detect_contact(def_IDs) and arm2_target_pose[2] > 0:
+                    arm2_target_pose += delta
+                else:
+                    arm2_target_pose = None
+
+            if arm1_target_pose is None and arm2_target_pose is None:  # 存在可能：运动到0但是没有触碰到物体
                 break
             else:   
                 success &= self.movep(arm1_target_pose, arm2_target_pose)
@@ -345,14 +347,17 @@ class DualArmEnvironment(Environment):
         # Create constraint (rigid objects) or anchor (deformable).
         self.ee.activate(self.objects, def_IDs)
         self.ee_2.activate(self.objects, def_IDs)
-
+        utils.cprint("Activate grasp", "yellow")
 
         # Increase z slightly (or hard-code it) and check picking success.
         arm1_prepick_pose[2] = 0.1
         arm2_prepick_pose[2] = 0.1
-        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, speed=0.001)
+        arm1_prepick_pose[3:] = [0, 0, 0, 1]  # 摆正角度
+        arm2_prepick_pose[3:] = [0, 0, 0, 1]
+        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, speed=0.003)
+        utils.cprint("Raise up a little", "yellow")
 
-        pick_success = self.ee.check_grasp()
+        pick_success = self.ee.check_grasp() and self.ee_2.check_grasp()
 
         if pick_success:
             arm1_place_position = np.array(arm1_pose1[0])
@@ -361,43 +366,13 @@ class DualArmEnvironment(Environment):
             arm2_place_position = np.array(arm2_pose1[0])
             arm2_place_rotation = np.array(arm2_pose1[1])
             
-            
             arm1_place_pose = np.hstack((arm1_place_position, arm1_place_rotation))
             arm2_place_pose = np.hstack((arm2_place_position, arm2_place_rotation))
             
-            
-            success &= self.movep(arm1_place_pose, arm2_place_pose, speed=0.001)
-            # preplace_position = place_position.copy()
-            # preplace_position[2] = 0.3 + pick_position[2]
+            success &= self.movep(arm1_place_pose, arm2_place_pose, speed=0.003)
+            utils.cprint("Arrive place_pose", "yellow")
 
-            # Execute placing motion primitive if pick success.
-        #     preplace_pose = np.hstack((preplace_position, place_rotation))
-        #     if self.is_softbody_env() or self.is_new_cable_env():
-        #         preplace_pose[2] = preplace_z
-        #         success &= self.movep(preplace_pose, speed=speed)
-        #         time.sleep(pause_place) # extra rest for bags
-        #     elif isinstance(self.task, tasks.names['cable']) or \
-        #         isinstance(self.task, tasks.names['cable-vessel']):
-        #         preplace_pose[2] = 0.03
-        #         # preplace_pose[2] = 0.2  # extra target height
-        #         success &= self.movep(preplace_pose, speed=0.001)
-        #     else:
-        #         success &= self.movep(preplace_pose)
+            time.sleep(2)
 
-        #     # Lower the gripper. Here, we have a fixed speed=0.01. TODO: consider additional
-        #     # testing with bags, so that the 'lowering' process for bags is more reliable.
-        #     target_pose = preplace_pose.copy()
-        #     while not self.ee.detect_contact(def_IDs) and target_pose[2] > 0:
-        #         target_pose += delta
-        #         success &= self.movep(target_pose)
-
-        #     # Release AND get gripper high up, to clear the view for images.
-        #     self.ee.release()
-        #     preplace_pose[2] = final_z
-        #     success &= self.movep(preplace_pose)
-        # else:
-        #     # Release AND get gripper high up, to clear the view for images.
-        #     self.ee.release()
-        #     prepick_pose[2] = final_z
-        #     success &= self.movep(prepick_pose)
-        # return success
+        else:
+            utils.cprint("Grasp failed!", "red")

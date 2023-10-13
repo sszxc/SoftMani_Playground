@@ -82,8 +82,8 @@ class Vessel(Task):
         # position = np.float32((0.5,0,0))
         # position, _ = self.random_pose(env, zone_range)  # 随机位置（注意是tuple）
 
-        def add_vessel(position, direction):
-            '''position 起始位置, direction 延伸的方向
+        def add_vessel(position, direction, hang_position):
+            '''position 起始位置, direction 延伸的方向, hang_position 悬挂的位置
             '''
             assert np.linalg.norm(direction) == 1, "direction should be unit vector"
             # 定义每个珠子的属性
@@ -99,15 +99,24 @@ class Vessel(Task):
                     distance = 0.055  # 珠子之间的距离
                     part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.10)
                     part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.10)  # 主要改形状
-                    orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
+                    orientation = p.getQuaternionFromEuler((0.2*math.pi, 0.5*math.pi, 0))  # TODO 这里加了个测试角度
                 position += [d * distance for d in direction]  # 每次增加一个珠子的距离
                 part_id = p.createMultiBody(
                     0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
 
                 # 物理约束
                 # if len(env.objects) > 0:
-                if i == 0:  # TODO 让第一个珠子和某个固定悬空物体相连
-                    pass
+                if i == 0:  # 第一个珠子和桌面相连
+                    constraint_id = p.createConstraint(
+                        parentBodyUniqueId=1,  # 和前一个珠子相连
+                        parentLinkIndex=-1,
+                        childBodyUniqueId=part_id,
+                        childLinkIndex=-1,
+                        jointType=p.JOINT_POINT2POINT,  # 注意这里是点对点
+                        jointAxis=(0, 0, 0),
+                        parentFramePosition=hang_position,
+                        childFramePosition=(0, 0, 0))
+                    p.changeConstraint(constraint_id, maxForce=1000)
                 if i > 0 and (i < num_parts - 1):
                     constraint_id = p.createConstraint(
                         parentBodyUniqueId=env.objects[-1],  # 和前一个珠子相连
@@ -138,16 +147,19 @@ class Vessel(Task):
                     p.changeVisualShape(part_id, -1, rgbaColor=color)
                 env.objects.append(part_id)
                 # print("part_id:", env.objects)
-            return part_id
+            return part_id  # 返回最后一个珠子的 id
 
         utils.cprint('Adding vessel1...', 'green')
-        last_part_1 = add_vessel(np.float32((0.1, 0.1, 0)), [1, 0, 0])  # add vessel 1
+        last_part_1 = add_vessel(np.float32((0.1, 0.1, 0)), [1, 0, 0], [-0.25, 0.05, 0.1])  # add vessel 1
         utils.cprint('Adding vessel2...', 'green')
-        last_part_2 = add_vessel(np.float32((0.9, -0.1, 0)), [-1, 0, 0])  # add vessel 2
+        last_part_2 = add_vessel(np.float32((0.9, -0.1, 0)), [-1, 0, 0], [0.25, -0.05, 0.1])  # add vessel 2
 
         # end-part target positions
-        self.goal['places'][last_part_1] = ((0.45,0,0.2), (0, 0, 0, 1))
-        self.goal['places'][last_part_2] = ((0.55,0,0.2), (0, 0, 0, 1))
+        self.goal['places'][last_part_1] = ((0.45,0,0.1), (0, 0, 0, 1))
+        self.goal['places'][last_part_2] = ((0.55,0,0.1), (0, 0, 0, 1))
+
+        # quant from euler (0, 0, 0.628)
+        # (0.0, 0.0, 0.30886552009893214, 0.951105719935495)
 
         # To get target positions for each cable, we need initial reference
         # position `true_position`. Center at x=0 by subtracting length/2.

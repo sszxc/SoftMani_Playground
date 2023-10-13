@@ -300,6 +300,8 @@ class Environment():
         while not self.is_static():
             if self.is_bag_env() and (time.time() - start_t > 2.0):
                 break
+            if self.is_vessel_env() and (time.time() - start_t > 3.0):  # 晃动太多，也不等了
+                break
             time.sleep(0.001)
 
         # Compute task rewards.
@@ -719,3 +721,8 @@ class Environment():
                 isinstance(self.task, tasks.names['bag-items-easy']) or
                 isinstance(self.task, tasks.names['bag-items-hard']) or
                 isinstance(self.task, tasks.names['bag-color-goal']))
+
+    def is_vessel_env(self):
+        """Keep this updated when I adjust environment names."""
+        return (isinstance(self.task, tasks.names['cable-vessel']))
+

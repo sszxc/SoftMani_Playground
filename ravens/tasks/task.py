@@ -7,6 +7,7 @@ import random
 import collections
 
 import cv2
+import math
 import numpy as np
 import pybullet as p
 import matplotlib.pyplot as plt
@@ -722,11 +723,9 @@ class Task():
                 # pick_pixel = utils.sample_distribution(pick_prob)
                 # pick_position = utils.pixel_to_position(
                 #     pick_pixel, heightmap, self.bounds, self.pixel_size)
-                pick_rotation = p.getQuaternionFromEuler((0, 0, 0))  # 默认方向
+                pick_rotation = p.getQuaternionFromEuler((0, 0, 0))  # 默认方向（竖直向下） 
                 # pick_pose = (pick_position, pick_rotation)
                 # print("Pick pose:", pick_pose)
-
-                # TODO 从这里继续
 
                 # position_shape = position.shape
                 # position = np.float32(position).reshape(3, -1)
@@ -735,24 +734,30 @@ class Task():
                 # position = rotation @ position + translation
 
                 targets = list(self.goal['places'].keys())
-                targets_pose = []
-                # for t in targets:
-                #     pos = object_positions[t][0]
-                #     rot = object_positions[t][1]
-                #     apply_rot = p.getQuaternionFromEuler((0, 0, 90))
-                #     rot = p.multiplyTransforms(pos, rot, pos, apply_rot)[1]
+                targets_pose_now = []
+                for t in targets:
+                    # 只比较欧拉角其中一维 这样是错误的
+                    # euler_xyz = list(utils.get_rot_from_pybullet_quaternion(object_positions[t][1]))
+                    # euler_xyz[0] = 0.0
+                    # euler_xyz[1] = 0.0 # -= np.pi / 2.0
+                    # euler_xyz[2]
+                    
+                    # 计算圆柱指向的夹角 TODO not fully verified !!!
+                    dir_vector = ([1, 0, 0], [0, 0, 0, 1])
+                    dir_vector = utils.multiply(([0, 0, 0], object_positions[t][1]), dir_vector)[0]
+                    angle = math.atan(dir_vector[0]/dir_vector[1])
+                    targets_pose_now.append([object_positions[t][0],
+                                             utils.get_pybullet_quaternion_from_rot([0, 0, angle])])
 
-                # utils.get_rot_from_pybullet_quaternion
-
-                # arm1_pick_pose=(*object_positions[targets[0]],)
-                # arm2_pick_pose=(*object_positions[targets[1]],)
+                arm1_pick_pose=(targets_pose_now[0])
+                arm2_pick_pose=(targets_pose_now[1])
                 
-                arm1_pick_pose=(object_positions[targets[0]][0], pick_rotation)
-                arm2_pick_pose=(object_positions[targets[1]][0], pick_rotation)
+                # arm1_pick_pose=(object_positions[targets[0]][0], pick_rotation)  # 无旋转
+                # arm2_pick_pose=(object_positions[targets[1]][0], pick_rotation)
                 print("Pick pose:", arm1_pick_pose, arm2_pick_pose)
 
                 # Get candidate target placing poses.
-                targets_pose = [self.goal['places'][targets[i]] for i in range(2)]
+                targets_pose_goal = [self.goal['places'][targets[i]] for i in range(2)]
 
                 # # Compute placing pose.
                 # object_pose = p.getBasePositionAndOrientation(object_id)
@@ -761,8 +766,8 @@ class Task():
                 # pick_to_object = self.invert(object_to_pick)
                 # place_pose = self.multiply(true_pose, pick_to_object)
 
-                params = {'arm1_pose0': arm1_pick_pose, 'arm1_pose1': targets_pose[0],
-                          'arm2_pose0': arm2_pick_pose, 'arm2_pose1': targets_pose[1]}
+                params = {'arm1_pose0': arm1_pick_pose, 'arm1_pose1': targets_pose_goal[0],
+                          'arm2_pose0': arm2_pick_pose, 'arm2_pose1': targets_pose_goal[1]}
                 print("params:", params)
                 act['params'] = params
 
