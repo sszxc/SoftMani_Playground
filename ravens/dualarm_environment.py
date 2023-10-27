@@ -24,7 +24,7 @@ class DualArmEnvironment(Environment):
     def reset(self, task, last_info=None, disable_render_load=True):
         '''初始化双机械臂环境
         '''
-        # disable_render_load = False  # 初始化的时候允许渲染（耗时久）
+        disable_render_load = False  # 初始化的时候允许渲染（耗时久）
         self.pause()
         self.task = task
         self.objects = []
@@ -63,8 +63,8 @@ class DualArmEnvironment(Environment):
         self.ee_tip_link_2 = 12
         self.ee_tip_link = 12
         if self.task.ee == 'suction':
-            self.ee = Suction(self.ur5, 11)
-            self.ee_2 = Suction(self.ur5_2, 11)
+            self.ee = Suction(self.ur5, 11, position=(0.387, 0.109, 0.351))
+            self.ee_2 = Suction(self.ur5_2, 11, position=(0.612, -0.109, 0.351))
         elif self.task.ee == 'gripper':
             self.ee = Robotiq2F85(self.ur5, 9)
             self.ee_tip_link = 10

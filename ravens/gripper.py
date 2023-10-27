@@ -27,7 +27,7 @@ class Gripper:
 
 class Suction(Gripper):
 
-    def __init__(self, robot_id, tool_link):
+    def __init__(self, robot_id, tool_link, position=(0.487, 0.109, 0.351)):
         """Creates constraint between suction and the robot.
 
         p.getNumJoints(robot_id) = 14
@@ -45,7 +45,7 @@ class Suction(Gripper):
         and not p.getBasePositionAndOrientation(self.body) as the latter is
         about z=0.03m higher and empirically seems worse.
         """
-        position = (0.487, 0.109, 0.351)
+        # position = (0.487, 0.109, 0.351)
         rotation = p.getQuaternionFromEuler((np.pi, 0, 0))
         urdf = 'assets/ur5/suction/suction-head.urdf'
         self.body = p.loadURDF(urdf, position, rotation)

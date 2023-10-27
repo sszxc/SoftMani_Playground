@@ -97,26 +97,26 @@ class Vessel(Task):
                     orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
                 else:
                     distance = 0.055  # 珠子之间的距离
-                    part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.10)
-                    part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.10)  # 主要改形状
-                    orientation = p.getQuaternionFromEuler((0.2*math.pi, 0.5*math.pi, 0))  # TODO 这里加了个测试角度
+                    part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.1)
+                    part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.1)  # 主要改形状
+                    # orientation = p.getQuaternionFromEuler((np.random.uniform(-0.5, 0.5)*math.pi, 0.5*math.pi, 0))  # TODO 这里加了个测试角度
+                    orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
                 position += [d * distance for d in direction]  # 每次增加一个珠子的距离
                 part_id = p.createMultiBody(
                     0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
 
                 # 物理约束
-                # if len(env.objects) > 0:
-                if i == 0:  # 第一个珠子和桌面相连
-                    constraint_id = p.createConstraint(
-                        parentBodyUniqueId=1,  # 和前一个珠子相连
-                        parentLinkIndex=-1,
-                        childBodyUniqueId=part_id,
-                        childLinkIndex=-1,
-                        jointType=p.JOINT_POINT2POINT,  # 注意这里是点对点
-                        jointAxis=(0, 0, 0),
-                        parentFramePosition=hang_position,
-                        childFramePosition=(0, 0, 0))
-                    p.changeConstraint(constraint_id, maxForce=1000)
+                # if i == 0:  # 第一个珠子和桌面相连
+                #     constraint_id = p.createConstraint(
+                #         parentBodyUniqueId=1,  # 和前一个珠子相连
+                #         parentLinkIndex=-1,
+                #         childBodyUniqueId=part_id,
+                #         childLinkIndex=-1,
+                #         jointType=p.JOINT_POINT2POINT,  # 注意这里是点对点
+                #         jointAxis=(0, 0, 0),
+                #         parentFramePosition=hang_position,
+                #         childFramePosition=(0, 0, 0))
+                #     p.changeConstraint(constraint_id, maxForce=1000)
                 if i > 0 and (i < num_parts - 1):
                     constraint_id = p.createConstraint(
                         parentBodyUniqueId=env.objects[-1],  # 和前一个珠子相连
@@ -137,7 +137,7 @@ class Vessel(Task):
                         jointType=p.JOINT_POINT2POINT,
                         jointAxis=(0, 0, 0),
                         parentFramePosition=(0, 0, 0),
-                        childFramePosition=(0, 0, distance * direction[0]))  # 坐标系放在圆柱末端
+                        childFramePosition=(0, 0, distance * direction[0]))
                     p.changeConstraint(constraint_id, maxForce=100)
 
                 # 颜色
@@ -150,9 +150,13 @@ class Vessel(Task):
             return part_id  # 返回最后一个珠子的 id
 
         utils.cprint('Adding vessel1...', 'green')
-        last_part_1 = add_vessel(np.float32((0.1, 0.1, 0)), [1, 0, 0], [-0.25, 0.05, 0.1])  # add vessel 1
+        last_part_1 = add_vessel(np.float32((0.1, 0.1, 0)) + np.r_[np.random.uniform(size=2), 0] * 0.2,
+                                 [1, 0, 0],
+                                 [-0.25, 0.05, 0.1])  # add vessel 1
         utils.cprint('Adding vessel2...', 'green')
-        last_part_2 = add_vessel(np.float32((0.9, -0.1, 0)), [-1, 0, 0], [0.25, -0.05, 0.1])  # add vessel 2
+        last_part_2 = add_vessel(np.float32((0.9, -0.1, 0)) + np.r_[np.random.uniform(size=2), 0] * 0.2,
+                                 [-1, 0, 0],
+                                 [0.25, -0.05, 0.1])  # add vessel 2
 
         # end-part target positions
         self.goal['places'][last_part_1] = ((0.45,0,0.1), (0, 0, 0, 1))
@@ -179,5 +183,6 @@ class Vessel(Task):
 
         # Wait for beaded cable to settle.
         env.start()
+        # while 1:
         time.sleep(1)
         env.pause()
