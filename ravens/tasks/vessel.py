@@ -100,7 +100,7 @@ class Vessel(Task):
                     part_shape = p.createCollisionShape(p.GEOM_CYLINDER, radius=0.01, height=0.1)
                     part_visual = p.createVisualShape(p.GEOM_CYLINDER, radius=0.01, length=0.1)  # 主要改形状
                     # orientation = p.getQuaternionFromEuler((np.random.uniform(-0.5, 0.5)*math.pi, 0.5*math.pi, 0))  # TODO 这里加了个测试角度
-                    orientation = p.getQuaternionFromEuler((0, 0.5*math.pi, 0))
+                    orientation = p.getQuaternionFromEuler((0.1*math.pi, 0.5*math.pi, 0))
                 position += [d * distance for d in direction]  # 每次增加一个珠子的距离
                 part_id = p.createMultiBody(
                     0.1, part_shape, part_visual, basePosition=position, baseOrientation=orientation)
@@ -184,5 +184,5 @@ class Vessel(Task):
         # Wait for beaded cable to settle.
         env.start()
         # while 1:
-        time.sleep(1)
-        env.pause()
+        time.sleep(2)
+        # env.pause()

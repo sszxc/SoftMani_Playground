@@ -737,17 +737,21 @@ class Task():
                 targets_pose_now = []
                 for t in targets:
                     # 只比较欧拉角其中一维 这样是错误的
-                    # euler_xyz = list(utils.get_rot_from_pybullet_quaternion(object_positions[t][1]))
+                    euler_xyz = list(utils.get_rot_from_pybullet_quaternion(object_positions[t][1]))
+                    euler_xyz1 = p.getEulerFromQuaternion(object_positions[t][1])
+                    print("euler_xyz", euler_xyz)
+                    print("euler_xyz1", euler_xyz)
+                    # return
                     # euler_xyz[0] = 0.0
                     # euler_xyz[1] = 0.0 # -= np.pi / 2.0
                     # euler_xyz[2]
-                    
+                
                     # 计算圆柱指向的夹角 TODO not fully verified !!!
                     dir_vector = ([1, 0, 0], [0, 0, 0, 1])
                     dir_vector = utils.multiply(([0, 0, 0], object_positions[t][1]), dir_vector)[0]
                     angle = math.atan(dir_vector[0]/dir_vector[1])
                     targets_pose_now.append([object_positions[t][0],
-                                             utils.get_pybullet_quaternion_from_rot([0, 0, angle])])
+                                             utils.get_pybullet_quaternion_from_rot([0, 0, euler_xyz[0]])])
 
                 arm1_pick_pose=(targets_pose_now[0])
                 arm2_pick_pose=(targets_pose_now[1])

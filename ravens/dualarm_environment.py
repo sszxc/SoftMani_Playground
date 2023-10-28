@@ -24,7 +24,7 @@ class DualArmEnvironment(Environment):
     def reset(self, task, last_info=None, disable_render_load=True):
         '''初始化双机械臂环境
         '''
-        disable_render_load = False  # 初始化的时候允许渲染（耗时久）
+        # disable_render_load = False  # 初始化的时候允许渲染（耗时久）
         self.pause()
         self.task = task
         self.objects = []
@@ -279,7 +279,7 @@ class DualArmEnvironment(Environment):
         print("arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1:", arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1)
         # Defaults used in the standard Ravens environments.
         speed = 0.01
-        delta_z = -0.002
+        delta_z = -0.005
         prepick_z = 0.3
         postpick_z = 0.3
         preplace_z = 0.3
@@ -325,6 +325,7 @@ class DualArmEnvironment(Environment):
         arm2_target_pose = arm2_prepick_pose.copy()
         delta = np.array([0, 0, delta_z, 0, 0, 0, 0])
 
+                
         # Lower gripper until (a) touch object (rigid OR softbody), or (b) hit ground.
         while True:
             if arm1_target_pose is not None:
