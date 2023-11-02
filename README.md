@@ -8,6 +8,7 @@ The code is based heavily on the [Deformable Ravens project, ICRA 2021](https://
 python3 vessel_sim.py
 ```
 
+![demo](vessel_sim_demo.png)
 
 > The following is the README of the [original repository](https://github.com/DanielTakeshi/deformable-ravens).
 

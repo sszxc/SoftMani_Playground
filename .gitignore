@@ -10,7 +10,7 @@
 data/
 data_out/
 logs/
-*.png
+# *.png
 *.jpeg
 *.pkl
 checkpoints/
