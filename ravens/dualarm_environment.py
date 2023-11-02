@@ -20,6 +20,13 @@ class DualArmEnvironment(Environment):
     def __init__(self, disp=False, hz=240):
         super().__init__(disp, hz)  # 基础的 bullet 环境
         self.primitives["pick_place_vessel"] = self.pick_place_vessel
+    
+    def set_camPose(self, d=1.0, yaw=20, pitch=-35, target=(0.5, 0, 0.1)):
+        p.resetDebugVisualizerCamera(
+            cameraDistance=d,
+            cameraYaw=yaw,
+            cameraPitch=pitch,
+            cameraTargetPosition=target)  # 调整相机位置  TODO 好像不能调整焦距
 
     def reset(self, task, last_info=None, disable_render_load=True):
         '''初始化双机械臂环境
@@ -37,11 +44,7 @@ class DualArmEnvironment(Environment):
         p.setGravity(0, 0, -1)  # 手动修改重力
         # p.setGravity(0, 0, -9.8)
 
-        p.resetDebugVisualizerCamera(
-            cameraDistance=1.0,
-            cameraYaw=20,
-            cameraPitch=-35,
-            cameraTargetPosition=(0.5, 0, 0.1),)  # 调整相机位置  TODO 好像不能调整焦距
+        self.set_camPose()
 
         # Slightly increase default movej timeout for the more demanding tasks.
         if self.is_bag_env():
@@ -197,7 +200,7 @@ class DualArmEnvironment(Environment):
 
                 arm1_norm = np.linalg.norm(arm1_diffj)
                 arm1_v = arm1_diffj / arm1_norm if arm1_norm > 0 else 0
-                arm1_stepj = arm1_currj + arm1_v * speed
+                arm1_stepj = arm1_currj + arm1_v * speed + (np.random.random(arm1_v.shape) - 0.5) * 0.001  # add some noise
                 arm1_gains = np.ones(len(self.ur5_list[2]))
                 p.setJointMotorControlArray(
                     bodyIndex=self.ur5_list[0],
@@ -218,7 +221,7 @@ class DualArmEnvironment(Environment):
                 
                 arm2_norm = np.linalg.norm(arm2_diffj)
                 arm2_v = arm2_diffj / arm2_norm if arm2_norm > 0 else 0
-                arm2_stepj = arm2_currj + arm2_v * speed
+                arm2_stepj = arm2_currj + arm2_v * speed + (np.random.random(arm2_v.shape) - 0.5) * 0.001  # add some noise
                 arm2_gains = np.ones(len(self.ur5_list[2]))
                 p.setJointMotorControlArray(
                     bodyIndex=self.ur5_2_list[0],
@@ -276,6 +279,7 @@ class DualArmEnvironment(Environment):
             checking the sequence of movep calls. If any movep failed, then
             self.step() will terminate the episode after this action.
         """
+        self.set_camPose(d=0.5, yaw=0, pitch=-20)
         print("arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1:", arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1)
         # Defaults used in the standard Ravens environments.
         speed = 0.01
@@ -343,7 +347,7 @@ class DualArmEnvironment(Environment):
             if arm1_target_pose is None and arm2_target_pose is None:  # 存在可能：运动到0但是没有触碰到物体
                 break
             else:   
-                success &= self.movep(arm1_target_pose, arm2_target_pose)
+                success &= self.movep(arm1_target_pose, arm2_target_pose, speed=0.003)
 
         # Create constraint (rigid objects) or anchor (deformable).
         self.ee.activate(self.objects, def_IDs)
@@ -357,7 +361,8 @@ class DualArmEnvironment(Environment):
         arm2_prepick_pose[3:] = [0, 0, 0, 1]
         success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, speed=0.003)
         utils.cprint("Raise up a little", "yellow")
-
+        
+        self.set_camPose(d=0.3)
         pick_success = self.ee.check_grasp() and self.ee_2.check_grasp()
 
         if pick_success:
@@ -370,7 +375,7 @@ class DualArmEnvironment(Environment):
             arm1_place_pose = np.hstack((arm1_place_position, arm1_place_rotation))
             arm2_place_pose = np.hstack((arm2_place_position, arm2_place_rotation))
             
-            success &= self.movep(arm1_place_pose, arm2_place_pose, speed=0.003)
+            success &= self.movep(arm1_place_pose, arm2_place_pose, speed=0.001)
             utils.cprint("Arrive place_pose", "yellow")
 
             time.sleep(2)
