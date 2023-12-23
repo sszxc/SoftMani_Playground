@@ -27,7 +27,7 @@ class Gripper:
 
 class Suction(Gripper):
 
-    def __init__(self, robot_id, tool_link, position=(0.487, 0.109, 0.351)):
+    def __init__(self, robot_id, tool_link, position=(0.487, 0.109, 0.351), camera=False):
         """Creates constraint between suction and the robot.
 
         p.getNumJoints(robot_id) = 14
@@ -46,19 +46,34 @@ class Suction(Gripper):
         about z=0.03m higher and empirically seems worse.
         """
         # position = (0.487, 0.109, 0.351)
-        rotation = p.getQuaternionFromEuler((np.pi, 0, 0))
-        urdf = 'assets/ur5/suction/suction-head.urdf'
-        self.body = p.loadURDF(urdf, position, rotation)
-        constraint_id = p.createConstraint(
-            parentBodyUniqueId=robot_id,
-            parentLinkIndex=tool_link,
-            childBodyUniqueId=self.body,
-            childLinkIndex=-1,
-            jointType=p.JOINT_FIXED,
-            jointAxis=(0, 0, 0),
-            parentFramePosition=(0, 0, 0),
-            childFramePosition=(0, 0, -0.07))
-        p.changeConstraint(constraint_id, maxForce=50)
+        # rotation = p.getQuaternionFromEuler((np.pi, 0, 0))
+        if not camera:
+            rotation = p.getQuaternionFromEuler((np.pi, 0, 0))
+            urdf = 'assets/ur5/suction/suction-head.urdf'
+            self.body = p.loadURDF(urdf, position, rotation)
+            constraint_id = p.createConstraint(
+                parentBodyUniqueId=robot_id,
+                parentLinkIndex=tool_link,
+                childBodyUniqueId=self.body,
+                childLinkIndex=-1,
+                jointType=p.JOINT_FIXED,
+                jointAxis=(0, 0, 0),
+                parentFramePosition=(0, 0, 0),
+                childFramePosition=(0, 0, -0.07))
+        else:
+            rotation = p.getQuaternionFromEuler((0, 0, np.pi))
+            urdf = 'assets/ur5/camera_box.urdf'
+            self.body = p.loadURDF(urdf, position, rotation)
+            constraint_id = p.createConstraint(
+                parentBodyUniqueId=robot_id,
+                parentLinkIndex=tool_link,
+                childBodyUniqueId=self.body,
+                childLinkIndex=-1,
+                jointType=p.JOINT_FIXED,
+                jointAxis=(0, 0, 0),
+                parentFramePosition=(0, 0, 0),
+                childFramePosition=(0, 0, -0.07))
+            p.changeConstraint(constraint_id, maxForce=50)
         self.activated = False
         self.contact_constraint = None
 

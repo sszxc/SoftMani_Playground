@@ -52,7 +52,7 @@ class Environment():
 
         # Start PyBullet.
         p.connect(p.GUI if disp else p.DIRECT)
-        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0) \\ comment this line to show camera view
         p.setPhysicsEngineParameter(enableFileCaching=0)
         assets_path = os.path.dirname(os.path.abspath(__file__))
         p.setAdditionalSearchPath(assets_path)

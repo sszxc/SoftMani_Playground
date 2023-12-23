@@ -14,19 +14,95 @@ import matplotlib.pyplot as plt
 from ravens.gripper import Gripper, Suction
 from ravens import tasks, utils
 from ravens import Environment
+import copy
 
 
 class DualArmEnvironment(Environment):
     def __init__(self, disp=False, hz=240):
         super().__init__(disp, hz)  # 基础的 bullet 环境
         self.primitives["pick_place_vessel"] = self.pick_place_vessel
-    
+        
+    def camera_shoot(self):
+        show_plot = True
+        if show_plot:
+            plt.figure()
+            plt_im = plt.imshow(np.zeros((240,320,4)))
+            plt.axis('off')
+            plt.tight_layout(pad=0)
+            
+        while True:
+      
+            current_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
+            current_position = np.array(current_state[0])
+            
+            ee1_state = p.getLinkState(self.ur5_2, 12, computeForwardKinematics=True)
+            target_position = list(ee1_state[0])
+            
+            view_mtx = p.computeViewMatrix(
+            cameraEyePosition=list(current_position),
+            cameraTargetPosition=target_position,
+            cameraUpVector=[0, 0, 1]
+            )
+            
+            proj_mtx=p.computeProjectionMatrixFOV(fov=60, aspect=640 / 480, nearVal=0.01, farVal=100)
+            
+            width = 400
+            height = 400
+            img = p.getCameraImage(width, height, view_mtx, proj_mtx)[2]
+            
+  
+            if show_plot:
+                plt_im.set_array(img)
+                plt.gca().set_aspect(height/width)
+                plt.draw()
+                plt.pause(0.1)
+                
+    def camera_shoot_new_thread(self):
+        self.shoot_thread = threading.Thread(target=self.camera_shoot, name="camera_shoot")
+        self.shoot_thread.start()
+        
+    def camera_follow(self):
+        while True:
+            time.sleep(0.1)
+            ee1_state = p.getLinkState(self.ur5_2, 12, computeForwardKinematics=True)
+            current_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
+            
+            
+            # ee1_state[0][1] += 0.3
+            # position = ee1_state[0]
+            # qu = ee1_state[1]
+            # rpy = p.getEulerFromQuaternion(qu)
+            # print(rpy)
+            
+            track_position = list(ee1_state[0])
+            track_position[1] += 0.6
+            track_position[2] = max(0.1, track_position[2])
+            
+            # print(track_position)
+            track_position = np.array(track_position)
+            
+            current_position = np.array(current_state[0])
+            
+            diff = current_position-track_position
+            diff_ = (np.sum(np.abs(diff)))
+            if diff_>0.01:
+                track_qut = np.array(p.getQuaternionFromEuler((0, 0, -0.5*math.pi)))
+                track_pose = np.hstack((track_position, track_qut))
+            
+                success = self.movep(arm1_pose=None, arm2_pose=None, arm_camera_pose=track_pose)
+                
+    def camera_follow_new_thread(self):
+        self.follow_thread = threading.Thread(target=self.camera_follow, name="camera_follow")
+        self.follow_thread.start()
+        
     def set_camPose(self, d=1.0, yaw=20, pitch=-35, target=(0.5, 0, 0.1)):
         p.resetDebugVisualizerCamera(
             cameraDistance=d,
             cameraYaw=yaw,
             cameraPitch=pitch,
             cameraTargetPosition=target)  # 调整相机位置  TODO 好像不能调整焦距
+        
+        
 
     def reset(self, task, last_info=None, disable_render_load=True):
         '''初始化双机械臂环境
@@ -63,11 +139,19 @@ class DualArmEnvironment(Environment):
         self.ur5 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(-0.1,0,0))
         ori_co = p.getQuaternionFromEuler((0, 0, math.pi))
         self.ur5_2 = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(1.1,0,0), baseOrientation=ori_co)
+        
+        ori_camera_arm = p.getQuaternionFromEuler((0, 0, 1.5*math.pi))
+        self.ur5_camera = p.loadURDF(f'assets/ur5/ur5-{self.task.ee}.urdf', basePosition=(0.5,1,0), baseOrientation=ori_camera_arm)
+        
+        
         self.ee_tip_link_2 = 12
+        self.ee_tip_link_camera = 12
         self.ee_tip_link = 12
         if self.task.ee == 'suction':
             self.ee = Suction(self.ur5, 11, position=(0.387, 0.109, 0.351))
             self.ee_2 = Suction(self.ur5_2, 11, position=(0.612, -0.109, 0.351))
+            self.ee_camera = Suction(self.ur5_camera, 11, camera=True)
+            
         elif self.task.ee == 'gripper':
             self.ee = Robotiq2F85(self.ur5, 9)
             self.ee_tip_link = 10
@@ -88,11 +172,22 @@ class DualArmEnvironment(Environment):
         joints_2 = [p.getJointInfo(self.ur5_2, i) for i in range(num_joints_2)]
         self.joints_2 = [j[0] for j in joints_2 if j[2] == p.JOINT_REVOLUTE]
         # print('self.joints2:\n', '\n'.join([str(j) for j in joints_2]))
+        
+        
+        utils.cprint('UR5 ArmCamera setup...', 'blue')
+        num_joints_camera = p.getNumJoints(self.ur5_camera)
+        # print("num_joints2:", num_joints_2)
+        joints_camera = [p.getJointInfo(self.ur5_camera, i) for i in range(num_joints_camera)]
+        self.joints_camera = [j[0] for j in joints_camera if j[2] == p.JOINT_REVOLUTE]
+        # print('self.joints2:\n', '\n'.join([str(j) for j in joints_2]))
 
         # Move robot to home joint configuration.
         for i in range(len(self.joints)):
             p.resetJointState(self.ur5, self.joints[i], self.homej[i])
             p.resetJointState(self.ur5_2, self.joints_2[i], self.homej[i])
+            p.resetJointState(self.ur5_camera, self.joints_camera[i], self.homej[i])
+        
+        # time.sleep(100)
 
         # Get end effector tip pose in home configuration.
         ee_tip_state = p.getLinkState(self.ur5, self.ee_tip_link)
@@ -106,6 +201,8 @@ class DualArmEnvironment(Environment):
         self.ur5_list = [self.ur5, self.ee_tip_link, self.joints, self.ee]
         self.ee_2.release()
         self.ur5_2_list = [self.ur5_2, self.ee_tip_link_2, self.joints_2, self.ee_2]
+        
+        self.ur5_camera_list = [self.ur5_camera, self.ee_tip_link_camera, self.joints_camera, self.ee_camera]
         
 
         # Seems like this should be BEFORE reset()
@@ -149,9 +246,13 @@ class DualArmEnvironment(Environment):
         if disable_render_load:
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
         (obs, _, _, _) = self.step()
+        
+        
+        self.camera_follow_new_thread()
+        self.camera_shoot_new_thread()
         return obs
     
-    def movep(self, arm1_pose, arm2_pose, speed=0.01):
+    def movep(self, arm1_pose, arm2_pose, arm_camera_pose, speed=0.01):
         """Move dual UR5s to target end effector pose."""
         # # Keep joint angles between -180/+180
         # targj[5] = ((targj[5] + np.pi) % (2 * np.pi) - np.pi)
@@ -165,7 +266,13 @@ class DualArmEnvironment(Environment):
         else:
             arm2_targj = self.solve_IK(self.ur5_2_list, arm2_pose)
             
-        return self.movej(arm1_targj, arm2_targj, speed, self.t_lim)
+            
+        if arm_camera_pose is None:
+            arm_camera_targj=None
+        else:
+            arm_camera_targj = self.solve_IK(self.ur5_camera_list, arm_camera_pose)
+            
+        return self.movej(arm1_targj, arm2_targj, arm_camera_targj, speed, self.t_lim)
 
     def solve_IK(self, arm, pose):
         '''add parameter 'arm'
@@ -187,11 +294,12 @@ class DualArmEnvironment(Environment):
         joints[joints < -2 * np.pi] = joints[joints < -2 * np.pi] + 2 * np.pi
         return joints
     
-    def movej(self, arm1_targj, arm2_targj, speed=0.01, t_lim=20):
+    def movej(self, arm1_targj, arm2_targj, arm_camera_targj, speed=0.01, t_lim=20):
         """Move dual UR5s to target joint configuration."""
         t0 = time.time()
         flag1 = False
         flag2 = False
+        flag3 = False
         while (time.time() - t0) < t_lim:
             if arm1_targj is not None:
                 arm1_currj = [p.getJointState(self.ur5_list[0], i)[0] for i in self.ur5_list[2]]
@@ -234,8 +342,33 @@ class DualArmEnvironment(Environment):
                         flag2 = True
             else:
                 flag2 = True
+                
+            # arm_camera_targj = None
+            if arm_camera_targj is not None:                       
+                arm_camera_currj = [p.getJointState(self.ur5_camera_list[0], i)[0] for i in self.ur5_camera_list[2]]
+                arm_camera_currj = np.array(arm_camera_currj)
+                arm_camera_diffj = arm_camera_targj - arm_camera_currj
+                
+                arm_camera_norm = np.linalg.norm(arm_camera_diffj)
+                arm_camera_v = arm_camera_diffj / arm_camera_norm if arm_camera_norm > 0 else 0
+                arm_camera_stepj = arm_camera_currj + arm_camera_v * speed + (np.random.random(arm_camera_v.shape) - 0.5) * 0.001  # add some noise
+                arm_camera_gains = np.ones(len(self.ur5_2_list[2]))
+                p.setJointMotorControlArray(
+                    bodyIndex=self.ur5_camera_list[0],
+                    jointIndices=self.ur5_camera_list[2],
+                    controlMode=p.POSITION_CONTROL,
+                    targetPositions=arm_camera_stepj,
+                    positionGains=arm_camera_gains)
+                
+                if all(np.abs(arm_camera_diffj) < 1e-2):
+                        flag3 = True
+            else:
+                flag3 = True
+            
+            
+            
             time.sleep(0.001)
-            if flag1 and flag2:
+            if flag1 and flag2 and flag3:
                 return True
         print('Warning: movej exceeded {} sec timeout. Skipping.'.format(t_lim))
         return False
@@ -279,6 +412,7 @@ class DualArmEnvironment(Environment):
             checking the sequence of movep calls. If any movep failed, then
             self.step() will terminate the episode after this action.
         """
+        time.sleep(5)
         self.set_camPose(d=0.5, yaw=0, pitch=-20)
         print("arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1:", arm1_pose0, arm1_pose1, arm2_pose0, arm2_pose1)
         # Defaults used in the standard Ravens environments.
@@ -322,16 +456,57 @@ class DualArmEnvironment(Environment):
         arm1_prepick_pose = np.hstack((arm1_prepick_position, arm1_pick_rotation))
         arm2_prepick_pose = np.hstack((arm2_prepick_position, arm2_pick_rotation))
         
-        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose)
+        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, arm_camera_pose=None)
         utils.cprint("Arrive prepick_pose", "yellow")
         
         arm1_target_pose = arm1_prepick_pose.copy()
         arm2_target_pose = arm2_prepick_pose.copy()
         delta = np.array([0, 0, delta_z, 0, 0, 0, 0])
+        
+        
+        show_plot = 1
 
-                
+        # if show_plot:
+        #     plt.figure()
+        #     plt_im = plt.imshow(np.zeros((240,320,4)))
+        #     plt.axis('off')
+        #     plt.tight_layout(pad=0)
         # Lower gripper until (a) touch object (rigid OR softbody), or (b) hit ground.
         while True:
+            link_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
+            position = link_state[0]
+            qu = link_state[1]
+            rpy = p.getEulerFromQuaternion(qu)
+            print(rpy)
+            
+            
+            # view_mtx = p.computeViewMatrix(
+            # cameraEyePosition=[0, 0.0001, 1],
+            # cameraTargetPosition=[0, 0, 0],
+            # cameraUpVector=[0, 0, 1]
+            # )
+            
+            # proj_mtx=p.computeProjectionMatrixFOV(fov=60, aspect=640 / 480, nearVal=0.01, farVal=100)
+            
+            # width = 400
+            # height = 400
+            # img = p.getCameraImage(width, height, view_mtx, proj_mtx)[2]
+
+            
+            # show_plot = 1
+            # # if show_plot:
+            # #     plt.figure()
+            # #     plt_im = plt.imshow(np.zeros((240,320,4)))
+            # #     plt.axis('off')
+            # #     plt.tight_layout(pad=0)
+            # if show_plot:
+            #     plt_im.set_array(img)
+            #     plt.gca().set_aspect(height/width)
+            #     plt.draw()
+            #     plt.pause(0.1)
+            
+            
+            
             if arm1_target_pose is not None:
                 if not self.ee.detect_contact(def_IDs) and arm1_target_pose[2] > 0:  # what goes wrong here?
                     arm1_target_pose += delta
@@ -347,7 +522,7 @@ class DualArmEnvironment(Environment):
             if arm1_target_pose is None and arm2_target_pose is None:  # 存在可能：运动到0但是没有触碰到物体
                 break
             else:   
-                success &= self.movep(arm1_target_pose, arm2_target_pose, speed=0.003)
+                success &= self.movep(arm1_target_pose, arm2_target_pose, arm_camera_pose=None, speed=0.003)
 
         # Create constraint (rigid objects) or anchor (deformable).
         self.ee.activate(self.objects, def_IDs)
@@ -359,15 +534,20 @@ class DualArmEnvironment(Environment):
         arm2_prepick_pose[2] = 0.1
         arm1_prepick_pose[3:] = [0, 0, 0, 1]  # 摆正角度
         arm2_prepick_pose[3:] = [0, 0, 0, 1]
-        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, speed=0.003)
+        success &= self.movep(arm1_prepick_pose, arm2_prepick_pose, arm_camera_pose=None, speed=0.003)
         utils.cprint("Raise up a little", "yellow")
         
-        self.set_camPose(d=0.3)
+        # self.set_camPose(d=0.3)s
         pick_success = self.ee.check_grasp() and self.ee_2.check_grasp()
 
         if pick_success:
             arm1_place_position = np.array(arm1_pose1[0])
             arm1_place_rotation = np.array(arm1_pose1[1])
+            
+            arm_camera_position = copy.copy(arm1_place_position)
+            arm_camera_position[1] += 0.3
+            arm_camera_position[2] += 0.3
+            
             
             arm2_place_position = np.array(arm2_pose1[0])
             arm2_place_rotation = np.array(arm2_pose1[1])
@@ -375,7 +555,10 @@ class DualArmEnvironment(Environment):
             arm1_place_pose = np.hstack((arm1_place_position, arm1_place_rotation))
             arm2_place_pose = np.hstack((arm2_place_position, arm2_place_rotation))
             
-            success &= self.movep(arm1_place_pose, arm2_place_pose, speed=0.001)
+            arm_camera_pose = np.hstack((arm_camera_position, np.array(p.getQuaternionFromEuler((0, 0, -0.5*math.pi)))))
+            
+            
+            success &= self.movep(arm1_place_pose, arm2_place_pose, arm_camera_pose=None, speed=0.001)
             utils.cprint("Arrive place_pose", "yellow")
 
             time.sleep(2)
