@@ -23,6 +23,10 @@ class DualArmEnvironment(Environment):
         self.primitives["pick_place_vessel"] = self.pick_place_vessel
         
     def camera_shoot(self):
+        """
+        use bullet camera
+        """
+        # show plt figure
         show_plot = True
         if show_plot:
             plt.figure()
@@ -31,10 +35,11 @@ class DualArmEnvironment(Environment):
             plt.tight_layout(pad=0)
             
         while True:
-      
+            # camera position is set as the ee of the ur5_camera
             current_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
             current_position = np.array(current_state[0])
             
+            # camera target position is set as the ur5_2
             ee1_state = p.getLinkState(self.ur5_2, 12, computeForwardKinematics=True)
             target_position = list(ee1_state[0])
             
@@ -62,23 +67,19 @@ class DualArmEnvironment(Environment):
         self.shoot_thread.start()
         
     def camera_follow(self):
+        """
+        ur5_camera's ee follow ur5_2's, the orientation will not change 
+        """
         while True:
             time.sleep(0.1)
             ee1_state = p.getLinkState(self.ur5_2, 12, computeForwardKinematics=True)
             current_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
             
-            
-            # ee1_state[0][1] += 0.3
-            # position = ee1_state[0]
-            # qu = ee1_state[1]
-            # rpy = p.getEulerFromQuaternion(qu)
-            # print(rpy)
-            
+        
             track_position = list(ee1_state[0])
             track_position[1] += 0.6
             track_position[2] = max(0.1, track_position[2])
             
-            # print(track_position)
             track_position = np.array(track_position)
             
             current_position = np.array(current_state[0])
@@ -343,7 +344,6 @@ class DualArmEnvironment(Environment):
             else:
                 flag2 = True
                 
-            # arm_camera_targj = None
             if arm_camera_targj is not None:                       
                 arm_camera_currj = [p.getJointState(self.ur5_camera_list[0], i)[0] for i in self.ur5_camera_list[2]]
                 arm_camera_currj = np.array(arm_camera_currj)
@@ -463,50 +463,7 @@ class DualArmEnvironment(Environment):
         arm2_target_pose = arm2_prepick_pose.copy()
         delta = np.array([0, 0, delta_z, 0, 0, 0, 0])
         
-        
-        show_plot = 1
-
-        # if show_plot:
-        #     plt.figure()
-        #     plt_im = plt.imshow(np.zeros((240,320,4)))
-        #     plt.axis('off')
-        #     plt.tight_layout(pad=0)
-        # Lower gripper until (a) touch object (rigid OR softbody), or (b) hit ground.
         while True:
-            link_state = p.getLinkState(self.ur5_camera, 12, computeForwardKinematics=True)
-            position = link_state[0]
-            qu = link_state[1]
-            rpy = p.getEulerFromQuaternion(qu)
-            print(rpy)
-            
-            
-            # view_mtx = p.computeViewMatrix(
-            # cameraEyePosition=[0, 0.0001, 1],
-            # cameraTargetPosition=[0, 0, 0],
-            # cameraUpVector=[0, 0, 1]
-            # )
-            
-            # proj_mtx=p.computeProjectionMatrixFOV(fov=60, aspect=640 / 480, nearVal=0.01, farVal=100)
-            
-            # width = 400
-            # height = 400
-            # img = p.getCameraImage(width, height, view_mtx, proj_mtx)[2]
-
-            
-            # show_plot = 1
-            # # if show_plot:
-            # #     plt.figure()
-            # #     plt_im = plt.imshow(np.zeros((240,320,4)))
-            # #     plt.axis('off')
-            # #     plt.tight_layout(pad=0)
-            # if show_plot:
-            #     plt_im.set_array(img)
-            #     plt.gca().set_aspect(height/width)
-            #     plt.draw()
-            #     plt.pause(0.1)
-            
-            
-            
             if arm1_target_pose is not None:
                 if not self.ee.detect_contact(def_IDs) and arm1_target_pose[2] > 0:  # what goes wrong here?
                     arm1_target_pose += delta
@@ -544,19 +501,11 @@ class DualArmEnvironment(Environment):
             arm1_place_position = np.array(arm1_pose1[0])
             arm1_place_rotation = np.array(arm1_pose1[1])
             
-            arm_camera_position = copy.copy(arm1_place_position)
-            arm_camera_position[1] += 0.3
-            arm_camera_position[2] += 0.3
-            
-            
             arm2_place_position = np.array(arm2_pose1[0])
             arm2_place_rotation = np.array(arm2_pose1[1])
             
             arm1_place_pose = np.hstack((arm1_place_position, arm1_place_rotation))
             arm2_place_pose = np.hstack((arm2_place_position, arm2_place_rotation))
-            
-            arm_camera_pose = np.hstack((arm_camera_position, np.array(p.getQuaternionFromEuler((0, 0, -0.5*math.pi)))))
-            
             
             success &= self.movep(arm1_place_pose, arm2_place_pose, arm_camera_pose=None, speed=0.001)
             utils.cprint("Arrive place_pose", "yellow")
